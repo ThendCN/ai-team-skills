@@ -2,7 +2,10 @@
 set -euo pipefail
 
 # codex-run.sh - Codex CLI 包装脚本
-# 用于 Claude Code codex-agent skill 调用 Codex (gpt-5.2-codex)
+# 用于 Claude Code codex-agent skill 调用 Codex
+
+# 确保 pnpm 全局 bin 在 PATH 中
+export PATH="$HOME/.local/share/pnpm:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
 # 默认值
 MODEL=""
@@ -12,6 +15,7 @@ SANDBOX="full-auto"
 OUTPUT_FILE=""
 PROMPT_FILE=""
 PROMPT_ARGS=""
+MODE="exec"  # exec | review
 
 usage() {
     cat <<'USAGE'
@@ -24,16 +28,22 @@ Options:
   -s, --sandbox <mode>       沙箱模式: full-auto(默认) | dangerous | read-only
   -o, --output <file>        将最终消息写入文件
   -f, --file <file>          从文件读取 prompt（推荐）
+  -r, --review               使用 codex exec review 模式（代码审查）
+      --uncommitted          审查未提交的变更（仅 review 模式）
+      --base <branch>        审查相对于指定分支的变更（仅 review 模式）
   -h, --help                 显示帮助
 
 Examples:
   codex-run.sh "实现一个 REST API"
   codex-run.sh -f /tmp/prompt.txt -d ./my-project
   codex-run.sh -f /tmp/prompt.txt -s dangerous -o /tmp/result.txt
+  codex-run.sh -r --uncommitted -d ./my-project -o /tmp/review.txt
   echo "修复登录 bug" | codex-run.sh
 USAGE
     exit 0
 }
+
+REVIEW_FLAGS=()
 
 # 解析参数
 while [[ $# -gt 0 ]]; do
@@ -50,6 +60,12 @@ while [[ $# -gt 0 ]]; do
             OUTPUT_FILE="$2"; shift 2 ;;
         -f|--file)
             PROMPT_FILE="$2"; shift 2 ;;
+        -r|--review)
+            MODE="review"; shift ;;
+        --uncommitted)
+            REVIEW_FLAGS+=(--uncommitted); shift ;;
+        --base)
+            REVIEW_FLAGS+=(--base "$2"); shift 2 ;;
         -h|--help)
             usage ;;
         --)
@@ -61,7 +77,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# 获取 prompt：文件 > 参数 > stdin
+# 获取 prompt：文件 > 参数 > stdin（review 模式下 prompt 可选）
 if [[ -n "$PROMPT_FILE" ]]; then
     if [[ ! -f "$PROMPT_FILE" ]]; then
         echo "Error: Prompt file not found: $PROMPT_FILE" >&2
@@ -72,13 +88,10 @@ elif [[ -n "$PROMPT_ARGS" ]]; then
     PROMPT="$PROMPT_ARGS"
 elif [[ ! -t 0 ]]; then
     PROMPT=$(cat)
+elif [[ "$MODE" == "review" ]]; then
+    PROMPT=""  # review 模式下 prompt 可选
 else
     echo "Error: No prompt provided. Use -f, arguments, or pipe stdin." >&2
-    exit 1
-fi
-
-if [[ -z "$PROMPT" ]]; then
-    echo "Error: Empty prompt." >&2
     exit 1
 fi
 
@@ -88,45 +101,89 @@ if [[ ! -d "$WORKDIR" ]]; then
     exit 1
 fi
 
+# 验证 codex 可用
+if ! command -v codex &>/dev/null; then
+    echo "Error: codex CLI not found. Install with: pnpm add -g @openai/codex" >&2
+    exit 1
+fi
+
 # 构建 codex 命令
 CODEX_ARGS=(exec)
 
-# prompt 作为第一个位置参数
-CODEX_ARGS+=("$PROMPT")
+if [[ "$MODE" == "review" ]]; then
+    # review 子命令
+    CODEX_ARGS+=(review)
+    CODEX_ARGS+=("${REVIEW_FLAGS[@]}")
 
-# 沙箱模式
-case "$SANDBOX" in
-    full-auto)
-        CODEX_ARGS+=(--full-auto) ;;
-    dangerous)
-        CODEX_ARGS+=(--dangerously-auto-approve) ;;
-    read-only)
-        CODEX_ARGS+=(--read-only) ;;
-    *)
-        echo "Error: Invalid sandbox mode: $SANDBOX" >&2
-        exit 1 ;;
-esac
+    # 模型覆盖
+    if [[ -n "$MODEL" ]]; then
+        CODEX_ARGS+=(-m "$MODEL")
+    fi
+else
+    # 普通 exec 模式
 
-# 模型覆盖
-if [[ -n "$MODEL" ]]; then
-    CODEX_ARGS+=(--model "$MODEL")
+    # 沙箱模式（使用正确的 codex CLI 参数）
+    case "$SANDBOX" in
+        full-auto)
+            CODEX_ARGS+=(--full-auto) ;;
+        dangerous)
+            CODEX_ARGS+=(--dangerously-bypass-approvals-and-sandbox) ;;
+        read-only)
+            CODEX_ARGS+=(-s read-only) ;;
+        *)
+            echo "Error: Invalid sandbox mode: $SANDBOX" >&2
+            exit 1 ;;
+    esac
+
+    # 工作目录
+    CODEX_ARGS+=(-C "$WORKDIR")
+
+    # 模型覆盖
+    if [[ -n "$MODEL" ]]; then
+        CODEX_ARGS+=(-m "$MODEL")
+    fi
+
+    # 输出文件（仅 exec 模式支持 -o）
+    if [[ -n "$OUTPUT_FILE" ]]; then
+        CODEX_ARGS+=(-o "$OUTPUT_FILE")
+    fi
 fi
 
-# 执行 codex CLI
-cd "$WORKDIR"
+# 执行信息
 echo "=== Codex Agent Starting ===" >&2
-echo "Sandbox: $SANDBOX | Dir: $WORKDIR | Timeout: ${TIMEOUT}s" >&2
+echo "Mode: $MODE | Sandbox: $SANDBOX | Dir: $WORKDIR | Timeout: ${TIMEOUT}s" >&2
 if [[ -n "$MODEL" ]]; then
     echo "Model: $MODEL" >&2
 fi
 echo "---" >&2
 
-if [[ -n "$OUTPUT_FILE" ]]; then
-    timeout "$TIMEOUT" codex "${CODEX_ARGS[@]}" 2>&1 | tee "$OUTPUT_FILE"
-    EXIT_CODE=${PIPESTATUS[0]}
-else
-    timeout "$TIMEOUT" codex "${CODEX_ARGS[@]}"
+# 执行 codex CLI
+if [[ "$MODE" == "review" ]]; then
+    # review 模式：不支持 -C，需要 cd；不支持 -o，用重定向
+    cd "$WORKDIR"
+    if [[ -n "$OUTPUT_FILE" ]]; then
+        if [[ -n "$PROMPT" ]]; then
+            timeout "$TIMEOUT" codex "${CODEX_ARGS[@]}" "$PROMPT" > "$OUTPUT_FILE" 2>&1
+        else
+            timeout "$TIMEOUT" codex "${CODEX_ARGS[@]}" > "$OUTPUT_FILE" 2>&1
+        fi
+    else
+        if [[ -n "$PROMPT" ]]; then
+            timeout "$TIMEOUT" codex "${CODEX_ARGS[@]}" "$PROMPT" 2>&1
+        else
+            timeout "$TIMEOUT" codex "${CODEX_ARGS[@]}" 2>&1
+        fi
+    fi
     EXIT_CODE=$?
+else
+    # exec 模式：通过 stdin 传递长 prompt（避免参数长度限制）
+    if [[ -n "$PROMPT" ]]; then
+        echo "$PROMPT" | timeout "$TIMEOUT" codex "${CODEX_ARGS[@]}" -
+        EXIT_CODE=$?
+    else
+        timeout "$TIMEOUT" codex "${CODEX_ARGS[@]}"
+        EXIT_CODE=$?
+    fi
 fi
 
 if [[ $EXIT_CODE -eq 124 ]]; then
