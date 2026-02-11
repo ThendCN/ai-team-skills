@@ -35,6 +35,22 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Join-CommandArguments {
+    param([string[]]$Arguments)
+    $escaped = foreach ($arg in $Arguments) {
+        if ($null -eq $arg) {
+            '""'
+        }
+        elseif ($arg -match '[\s"`"]') {
+            '"' + ($arg -replace '([\\"])', '\$1') + '"'
+        }
+        else {
+            $arg
+        }
+    }
+    return ($escaped -join ' ')
+}
+
 if ($Help) {
     @"
 Usage: gemini-run.ps1 [OPTIONS] [prompt...]
@@ -107,7 +123,7 @@ try {
 
     $proc = New-Object System.Diagnostics.Process
     $proc.StartInfo.FileName = "gemini"
-    foreach ($a in $geminiArgs) { $proc.StartInfo.ArgumentList.Add($a) }
+    $proc.StartInfo.Arguments = Join-CommandArguments -Arguments $geminiArgs
     $proc.StartInfo.UseShellExecute = $false
     $proc.Start() | Out-Null
 
