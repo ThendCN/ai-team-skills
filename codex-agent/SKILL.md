@@ -34,6 +34,17 @@ bash ~/.claude/skills/codex-agent/scripts/codex-run.sh -r --uncommitted -d <工�
 bash ~/.claude/skills/codex-agent/scripts/codex-run.sh -f /tmp/codex-prompt.txt -o /tmp/codex-result.txt -d <工作目录>
 ```
 
+```powershell
+# Windows (PowerShell) - 标准执行
+pwsh ~/.claude/skills/codex-agent/scripts/codex-run.ps1 -File $env:TEMP\codex-prompt.txt -Dir <工作目录>
+
+# 需要完整权限时
+pwsh ~/.claude/skills/codex-agent/scripts/codex-run.ps1 -File $env:TEMP\codex-prompt.txt -Sandbox dangerous -Dir <工作目录>
+
+# 只读代码审查
+pwsh ~/.claude/skills/codex-agent/scripts/codex-run.ps1 -Review -Uncommitted -Dir <工作目录> -Output $env:TEMP\review.txt
+```
+
 ### 方式二：直接调用 codex CLI（备选）
 
 当包装脚本出问题时，可直接调用：
@@ -52,16 +63,18 @@ codex exec review --uncommitted > /tmp/review.txt 2>&1
 ### 脚本参数
 
 ```
-codex-run.sh [OPTIONS] [prompt...]
-  -m, --model <model>        模型覆盖（默认用 config.toml 配置）
-  -d, --dir <directory>      工作目录
-  -t, --timeout <seconds>    超时（默认 600s）
-  -s, --sandbox <mode>       full-auto(默认) | dangerous | read-only
-  -o, --output <file>        将最终消息写入文件
-  -f, --file <file>          从文件读取 prompt（推荐）
-  -r, --review               使用 review 模式（代码审查）
-      --uncommitted          审查未提交的变更（仅 review 模式）
-      --base <branch>        审查相对于指定分支的变更（仅 review 模式）
+codex-run.sh / codex-run.ps1 [OPTIONS] [prompt...]
+
+Bash:                                PowerShell:
+  -m, --model <model>                  -Model <model>
+  -d, --dir <directory>                -Dir <directory>
+  -t, --timeout <seconds>              -Timeout <seconds>
+  -s, --sandbox <mode>                 -Sandbox <mode>
+  -o, --output <file>                  -Output <file>
+  -f, --file <file>                    -File <file>
+  -r, --review                         -Review
+      --uncommitted                    -Uncommitted
+      --base <branch>                  -Base <branch>
 ```
 
 ## Codex CLI 关键参数映射（重要）
