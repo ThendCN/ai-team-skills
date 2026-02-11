@@ -143,25 +143,61 @@ Write-Host "Mode: $ExecMode | Sandbox: $Sandbox | Dir: $Dir | Timeout: ${Timeout
 if ($Model) { Write-Host "Model: $Model" -ForegroundColor DarkGray }
 Write-Host "---" -ForegroundColor DarkGray
 
+# --- 辅助函数：使用 System.Diagnostics.Process 执行 codex ---
+function Invoke-Codex {
+    param(
+        [string[]]$Arguments,
+        [string]$StdinFile = "",
+        [string]$OutputFile = "",
+        [int]$TimeoutSec = 600
+    )
+    $proc = New-Object System.Diagnostics.Process
+    $proc.StartInfo.FileName = "codex"
+    foreach ($a in $Arguments) { $proc.StartInfo.ArgumentList.Add($a) }
+    $proc.StartInfo.UseShellExecute = $false
+
+    if ($StdinFile) {
+        $proc.StartInfo.RedirectStandardInput = $true
+    }
+    if ($OutputFile) {
+        $proc.StartInfo.RedirectStandardOutput = $true
+        $proc.StartInfo.RedirectStandardError = $true
+    }
+
+    $proc.Start() | Out-Null
+
+    if ($StdinFile) {
+        $proc.StandardInput.Write([System.IO.File]::ReadAllText($StdinFile, [System.Text.Encoding]::UTF8))
+        $proc.StandardInput.Close()
+    }
+    if ($OutputFile) {
+        # 读取 stdout/stderr 到文件（避免死锁需异步读取）
+        $stdoutTask = $proc.StandardOutput.ReadToEndAsync()
+        $stderrTask = $proc.StandardError.ReadToEndAsync()
+    }
+
+    $completed = $proc.WaitForExit($TimeoutSec * 1000)
+    if (-not $completed) {
+        $proc.Kill()
+        Write-Error "Error: Codex execution timed out after ${TimeoutSec}s"
+        exit 124
+    }
+
+    if ($OutputFile) {
+        $content = $stdoutTask.Result
+        if ($stderrTask.Result) { $content += "`n" + $stderrTask.Result }
+        [System.IO.File]::WriteAllText($OutputFile, $content, [System.Text.Encoding]::UTF8)
+    }
+
+    exit $proc.ExitCode
+}
+
 # --- 执行 codex CLI ---
 if ($ExecMode -eq "review") {
     Push-Location $Dir
     try {
         if ($Prompt) { $codexArgs += $Prompt }
-        if ($Output) {
-            $process = Start-Process -FilePath "codex" -ArgumentList $codexArgs `
-                -NoNewWindow -PassThru `
-                -RedirectStandardOutput $Output -RedirectStandardError "$Output.err"
-            $completed = $process.WaitForExit($Timeout * 1000)
-            if (Test-Path "$Output.err") {
-                Get-Content "$Output.err" | Add-Content $Output
-                Remove-Item "$Output.err" -Force
-            }
-        }
-        else {
-            $process = Start-Process -FilePath "codex" -ArgumentList $codexArgs -NoNewWindow -PassThru
-            $completed = $process.WaitForExit($Timeout * 1000)
-        }
+        Invoke-Codex -Arguments $codexArgs -OutputFile $Output -TimeoutSec $Timeout
     }
     finally { Pop-Location }
 }
@@ -171,24 +207,13 @@ else {
         try {
             [System.IO.File]::WriteAllText($tmpFile, $Prompt, [System.Text.Encoding]::UTF8)
             $codexArgs += "-"
-            $process = Start-Process -FilePath "codex" -ArgumentList $codexArgs `
-                -NoNewWindow -PassThru -RedirectStandardInput $tmpFile
-            $completed = $process.WaitForExit($Timeout * 1000)
+            Invoke-Codex -Arguments $codexArgs -StdinFile $tmpFile -TimeoutSec $Timeout
         }
         finally {
             if (Test-Path $tmpFile) { Remove-Item $tmpFile -Force }
         }
     }
     else {
-        $process = Start-Process -FilePath "codex" -ArgumentList $codexArgs -NoNewWindow -PassThru
-        $completed = $process.WaitForExit($Timeout * 1000)
+        Invoke-Codex -Arguments $codexArgs -TimeoutSec $Timeout
     }
 }
-
-if (-not $completed) {
-    $process.Kill()
-    Write-Error "Error: Codex execution timed out after ${Timeout}s"
-    exit 124
-}
-
-exit $process.ExitCode

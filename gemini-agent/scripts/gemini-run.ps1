@@ -96,31 +96,30 @@ if ($Mode -eq "yolo") {
     $geminiArgs += "-y"
 }
 
-# 将 prompt 写入临时文件以避免转义问题
-$tmpFile = Join-Path ([System.IO.Path]::GetTempPath()) "gemini-prompt-$(Get-Random).txt"
+$geminiArgs += $Prompt
+
+# 执行 gemini CLI（使用 System.Diagnostics.Process 实现流式输出 + 超时控制）
+Push-Location $Dir
 try {
-    [System.IO.File]::WriteAllText($tmpFile, $Prompt, [System.Text.Encoding]::UTF8)
-
-    $geminiArgs += (Get-Content $tmpFile -Raw -Encoding UTF8)
-
-    # 执行 gemini CLI
-    Push-Location $Dir
     Write-Host "=== Gemini Agent Starting ===" -ForegroundColor Cyan
     Write-Host "Mode: $Mode | Dir: $Dir | Timeout: ${Timeout}s" -ForegroundColor DarkGray
     Write-Host "---" -ForegroundColor DarkGray
 
-    $process = Start-Process -FilePath "gemini" -ArgumentList $geminiArgs -NoNewWindow -PassThru
-    $completed = $process.WaitForExit($Timeout * 1000)
+    $proc = New-Object System.Diagnostics.Process
+    $proc.StartInfo.FileName = "gemini"
+    foreach ($a in $geminiArgs) { $proc.StartInfo.ArgumentList.Add($a) }
+    $proc.StartInfo.UseShellExecute = $false
+    $proc.Start() | Out-Null
 
+    $completed = $proc.WaitForExit($Timeout * 1000)
     if (-not $completed) {
-        $process.Kill()
+        $proc.Kill()
         Write-Error "Error: Gemini execution timed out after ${Timeout}s"
         exit 124
     }
 
-    exit $process.ExitCode
+    exit $proc.ExitCode
 }
 finally {
     Pop-Location
-    if (Test-Path $tmpFile) { Remove-Item $tmpFile -Force }
 }

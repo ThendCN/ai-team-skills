@@ -94,10 +94,10 @@ cp -r gemini-agent codex-agent ~/.claude/skills/
 
 ```powershell
 # Windows (PowerShell) - 全部安装
-Copy-Item -Recurse ai-team, gemini-agent, codex-agent "$env:USERPROFILE\.claude\skills\"
+@("ai-team", "gemini-agent", "codex-agent") | ForEach-Object { Copy-Item -Recurse $_ "$env:USERPROFILE\.claude\skills\" }
 
 # Windows (PowerShell) - 只安装单 agent
-Copy-Item -Recurse gemini-agent, codex-agent "$env:USERPROFILE\.claude\skills\"
+@("gemini-agent", "codex-agent") | ForEach-Object { Copy-Item -Recurse $_ "$env:USERPROFILE\.claude\skills\" }
 ```
 
 > Windows 用户说明：包装脚本同时提供 `.sh`（Bash）和 `.ps1`（PowerShell）两个版本。
