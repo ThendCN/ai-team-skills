@@ -2,7 +2,7 @@
 
 将 Gemini CLI 和 Codex CLI 集成为 Claude Code 的 skill，让 Claude Code 能够：
 
-- 委派 UI 设计任务给 **Gemini**（gemini-agent）
+- 委派 UI 设计任务给 **Gemini gemini-3-pro-preview**（gemini-agent）
 - 委派代码编写/审查任务给 **Codex gpt-5.3-codex**（codex-agent）
 - 编排多 Agent 协作流水线（ai-team）
 
@@ -31,7 +31,7 @@ Claude Code (编排者/大脑)
 
 ### gemini-agent
 
-Gemini AI 代理 - UI 设计与前端开发专家。
+Gemini (gemini-3-pro-preview) AI 代理 - UI 设计与前端开发专家。
 
 ```
 /gemini-agent <UI 设计描述>

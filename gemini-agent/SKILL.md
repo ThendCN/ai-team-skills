@@ -1,11 +1,11 @@
 ---
 name: gemini-agent
-description: "Gemini 3 Pro AI 代理 - UI 设计与前端开发专家。gemini-ui 的增强版，支持包装脚本、错误处理、流水线模式。触发条件：UI 设计、前端组件、页面布局、视觉设计、样式美化。使用 /gemini-agent <描述> 或 /design-ui <描述> 委派 UI 设计任务给 Gemini。"
+description: "Gemini (gemini-3-pro-preview) AI 代理 - UI 设计与前端开发专家。gemini-ui 的增强版，支持包装脚本、错误处理、流水线模式。触发条件：UI 设计、前端组件、页面布局、视觉设计、样式美化。使用 /gemini-agent <描述> 或 /design-ui <描述> 委派 UI 设计任务给 Gemini。"
 ---
 
 # Gemini Agent - AI 团队 UI 设计专家
 
-将 UI 设计和前端开发任务委派给 Gemini 3 Pro，由 Claude Code 编排和审查。
+将 UI 设计和前端开发任务委派给 Gemini (gemini-3-pro-preview)，由 Claude Code 编排和审查。
 
 ## 用法
 
@@ -41,7 +41,7 @@ gemini-run.sh [OPTIONS] [prompt...]
 
 将用户需求转化为 Gemini 友好的 prompt 时，遵循以下结构：
 
-1. **角色设定** - 在 prompt 开头明确要求使用 Pro 模型能力进行 UI 设计，例如：「你是 Gemini Pro，一个顶级 UI 设计师和前端开发专家，擅长创建高品质、现代化的用户界面。」
+1. **角色设定** - 在 prompt 开头明确要求使用 gemini-3-pro-preview 模型能力进行 UI 设计，例如：「你是 Gemini Pro，一个顶级 UI 设计师和前端开发专家，擅长创建高品质、现代化的用户界面。」
 2. **任务描述** - 清晰描述要生成的 UI
 3. **技术栈** - 明确框架（React/Vue/HTML）和样式方案（Tailwind/CSS）
 4. **代码规范** - 语义化 HTML、可访问性、响应式、TypeScript

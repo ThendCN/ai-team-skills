@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # gemini-run.sh - Gemini CLI 包装脚本
-# 用于 Claude Code gemini-agent skill 调用 Gemini 3 Pro
+# 用于 Claude Code gemini-agent skill 调用 Gemini (gemini-3-pro-preview)
 
 # 默认值
 MODE="yolo"
