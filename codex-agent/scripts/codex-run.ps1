@@ -47,6 +47,22 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Join-CommandArguments {
+    param([string[]]$Arguments)
+    $escaped = foreach ($arg in $Arguments) {
+        if ($null -eq $arg) {
+            '""'
+        }
+        elseif ($arg -match '[\s"`"]') {
+            '"' + ($arg -replace '([\\"])', '\\$1') + '"'
+        }
+        else {
+            $arg
+        }
+    }
+    return ($escaped -join ' ')
+}
+
 # 确保常见 bin 路径在 PATH 中（Windows pnpm 全局路径）
 if ($env:LOCALAPPDATA) {
     $pnpmGlobal = Join-Path $env:LOCALAPPDATA "pnpm"
@@ -153,7 +169,7 @@ function Invoke-Codex {
     )
     $proc = New-Object System.Diagnostics.Process
     $proc.StartInfo.FileName = "codex"
-    foreach ($a in $Arguments) { $proc.StartInfo.ArgumentList.Add($a) }
+    $proc.StartInfo.Arguments = Join-CommandArguments -Arguments $Arguments
     $proc.StartInfo.UseShellExecute = $false
 
     if ($StdinFile) {
