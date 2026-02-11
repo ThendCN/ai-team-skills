@@ -1,24 +1,37 @@
 # AI Team Skills for Claude Code
 
-将 Gemini CLI 和 Codex CLI 集成为 Claude Code 的两个独立 skill，让 Claude Code 能够：
+将 Gemini CLI 和 Codex CLI 集成为 Claude Code 的 skill，让 Claude Code 能够：
 
-- 委派 UI 设计任务给 **Gemini Pro**
-- 委派代码编写任务给 **Codex (gpt-5.2-codex)**
-- 支持**委派模式**（单任务分发）和**流水线模式**（设计 → 实现 → 审查）
+- 委派 UI 设计任务给 **Gemini**（gemini-agent）
+- 委派代码编写/审查任务给 **Codex**（codex-agent）
+- 编排多 Agent 协作流水线（ai-team）
 
 ## 架构
 
 ```
 Claude Code (编排者/大脑)
-    ├── gemini-agent skill → gemini-cli → UI/前端设计
-    └── codex-agent skill  → codex-cli  → 代码编写/实现
+    ├── ai-team skill       → 多 Agent 流水线编排
+    ├── gemini-agent skill  → gemini-cli → UI/前端设计
+    └── codex-agent skill   → codex-cli  → 代码编写/审查
 ```
 
 ## Skills
 
+### ai-team
+
+多 Agent 协作流水线，自动编排 Claude (Lead) + Codex (代码) + Gemini (UI)。
+
+```
+/ai-team <复杂任务描述>
+```
+
+适用于全栈开发、大型重构、UI→实现联动等需要多 agent 协作的场景。
+
+- 流水线模板：`ai-team/references/pipeline-templates.md`
+
 ### gemini-agent
 
-Gemini Pro AI 代理 - UI 设计与前端开发专家。
+Gemini AI 代理 - UI 设计与前端开发专家。
 
 ```
 /gemini-agent <UI 设计描述>
@@ -29,7 +42,7 @@ Gemini Pro AI 代理 - UI 设计与前端开发专家。
 
 ### codex-agent
 
-Codex AI 代理 - 代码编写与实现专家。
+Codex AI 代理 - 代码编写与实现专家。支持 exec（编写）和 review（审查）两种模式。
 
 ```
 /codex-agent <代码任务描述>
@@ -37,20 +50,29 @@ Codex AI 代理 - 代码编写与实现专家。
 
 - 包装脚本：`codex-agent/scripts/codex-run.sh`
 - Prompt 模板：`codex-agent/references/prompt-templates.md`
+- 支持 review 模式：`-r --uncommitted` 审查未提交变更
+- 支持并行任务拆分，提升长时间任务效率
 
 ## 协作模式
 
-### 委派模式（单任务）
+### 单 Agent 委派
 
 Claude Code 分析任务 → 构建 prompt → 调用对应 CLI → 收集结果
 
-### 流水线模式（全栈开发）
+### 多 Agent 流水线（ai-team）
 
-1. Claude 分析需求，拆分为设计 + 实现
-2. Gemini 设计 UI 代码
-3. Claude 审查，构建实现 prompt
-4. Codex 实现完整功能代码
-5. Claude 审查整合
+```
+模式 A: UI → 实现（串行）
+  gemini-worker 设计 UI → Claude 审查 → codex-worker 实现 → 测试
+
+模式 B: 审查 → 修复（串行）
+  codex-worker 审查 → Claude 确认 → codex-worker 修复 → 测试
+
+模式 C: 多模块并行
+  codex-worker-1 模块 A ─┐
+  codex-worker-2 模块 B ─┤→ Claude 整合 → 集成测试
+  gemini-worker UI      ─┘
+```
 
 ## 前置要求
 
@@ -60,10 +82,14 @@ Claude Code 分析任务 → 构建 prompt → 调用对应 CLI → 收集结果
 
 ## 安装
 
-将 `gemini-agent` 和 `codex-agent` 目录复制到你的 Claude Code skills 目录：
+将 skill 目录复制到你的 Claude Code skills 目录：
 
 ```bash
-cp -r gemini-agent codex-agent /path/to/your/project/.claude/skills/
+# 全部安装
+cp -r ai-team gemini-agent codex-agent ~/.claude/skills/
+
+# 或只安装单 agent（不需要流水线编排）
+cp -r gemini-agent codex-agent ~/.claude/skills/
 ```
 
 ## License
