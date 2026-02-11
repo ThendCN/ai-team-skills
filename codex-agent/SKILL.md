@@ -1,11 +1,11 @@
 ---
 name: codex-agent
-description: "Codex AI 代理 - 代码编写与实现专家。支持代码编写、功能实现、bug 修复、重构、测试、代码审查。使用 /codex-agent <描述> 或 /codex <描述> 委派代码任务给 Codex。"
+description: "Codex (gpt-5.3-codex high) AI 代理 - 代码编写与实现专家。支持代码编写、功能实现、bug 修复、重构、测试、代码审查。使用 /codex-agent <描述> 或 /codex <描述> 委派代码任务给 Codex。"
 ---
 
 # Codex Agent - AI 团队代码实现专家
 
-将代码编写和实现任务委派给 Codex，由 Claude Code 编排和审查。
+将代码编写和实现任务委派给 Codex (gpt-5.3-codex, reasoning effort: high)，由 Claude Code 编排和审查。
 
 ## 用法
 
