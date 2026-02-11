@@ -37,7 +37,7 @@ Gemini (gemini-3-pro-preview) AI 代理 - UI 设计与前端开发专家。
 /gemini-agent <UI 设计描述>
 ```
 
-- 包装脚本：`gemini-agent/scripts/gemini-run.sh`
+- 包装脚本：`gemini-agent/scripts/gemini-run.sh`（Linux/macOS）、`gemini-agent/scripts/gemini-run.ps1`（Windows）
 - Prompt 模板：`gemini-agent/references/prompt-templates.md`
 
 ### codex-agent
@@ -48,7 +48,7 @@ Codex (gpt-5.3-codex, reasoning: high) AI 代理 - 代码编写与实现专家�
 /codex-agent <代码任务描述>
 ```
 
-- 包装脚本：`codex-agent/scripts/codex-run.sh`
+- 包装脚本：`codex-agent/scripts/codex-run.sh`（Linux/macOS）、`codex-agent/scripts/codex-run.ps1`（Windows）
 - Prompt 模板：`codex-agent/references/prompt-templates.md`
 - 支持 review 模式：`-r --uncommitted` 审查未提交变更
 - 支持并行任务拆分，提升长时间任务效率
@@ -85,12 +85,23 @@ Claude Code 分析任务 → 构建 prompt → 调用对应 CLI → 收集结果
 将 skill 目录复制到你的 Claude Code skills 目录：
 
 ```bash
-# 全部安装
+# Linux / macOS - 全部安装
 cp -r ai-team gemini-agent codex-agent ~/.claude/skills/
 
-# 或只安装单 agent（不需要流水线编排）
+# Linux / macOS - 只安装单 agent（不需要流水线编排）
 cp -r gemini-agent codex-agent ~/.claude/skills/
 ```
+
+```powershell
+# Windows (PowerShell) - 全部安装
+Copy-Item -Recurse ai-team, gemini-agent, codex-agent "$env:USERPROFILE\.claude\skills\"
+
+# Windows (PowerShell) - 只安装单 agent
+Copy-Item -Recurse gemini-agent, codex-agent "$env:USERPROFILE\.claude\skills\"
+```
+
+> Windows 用户说明：包装脚本同时提供 `.sh`（Bash）和 `.ps1`（PowerShell）两个版本。
+> Claude Code 在 Windows 上会自动使用 `.ps1` 脚本（需要 PowerShell 5.1+ 或 pwsh）。
 
 ## License
 

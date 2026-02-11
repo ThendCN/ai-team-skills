@@ -21,20 +21,24 @@ description: "Gemini (gemini-3-pro-preview) AI 代理 - UI 设计与前端开发
 **推荐：使用 `-f` 文件模式传递 prompt（避免 shell 转义问题）**
 
 ```bash
-# 1. 将构建好的 prompt 写入临时文件
-# 2. 调用包装脚本
+# Linux / macOS
 bash .claude/skills/gemini-agent/scripts/gemini-run.sh -f /tmp/gemini-prompt.txt -d <工作目录>
+
+# Windows (PowerShell)
+pwsh .claude/skills/gemini-agent/scripts/gemini-run.ps1 -File $env:TEMP\gemini-prompt.txt -Dir <工作目录>
 ```
 
 ### 脚本参数
 
 ```
-gemini-run.sh [OPTIONS] [prompt...]
-  -m, --mode <yolo|prompt>   执行模式（默认 yolo，自动批准）
-  --model <model>            模型覆盖（默认使用 gemini CLI 配置）
-  -d, --dir <directory>      工作目录
-  -t, --timeout <seconds>    超时（默认 300s）
-  -f, --file <file>          从文件读取 prompt（推荐）
+gemini-run.sh / gemini-run.ps1 [OPTIONS] [prompt...]
+
+Bash:                                PowerShell:
+  -m, --mode <yolo|prompt>             -Mode <yolo|prompt>
+  --model <model>                      -Model <model>
+  -d, --dir <directory>                -Dir <directory>
+  -t, --timeout <seconds>              -Timeout <seconds>
+  -f, --file <file>                    -File <file>
 ```
 
 ## Prompt 构建指南
@@ -63,7 +67,7 @@ Gemini 生成的文件直接写入工作目录。Claude Code 应：
 
 作为流水线第一步（设计阶段）时：
 1. Claude 分析需求，构建 UI 设计 prompt
-2. 调用 gemini-run.sh 生成 UI 代码
+2. 调用 gemini-run.sh（或 Windows 上的 gemini-run.ps1）生成 UI 代码
 3. Claude 读取生成的文件，提取关键设计信息
 4. 将 UI 设计上下文传递给下一步（codex-agent 实现业务逻辑）
 
