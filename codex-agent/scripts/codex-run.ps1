@@ -54,7 +54,7 @@ function Join-CommandArguments {
             '""'
         }
         elseif ($arg -match '[\s"`"]') {
-            '"' + ($arg -replace '([\\"])', '\\$1') + '"'
+            '"' + ($arg -replace '([\\"])', '\$1') + '"'
         }
         else {
             $arg
