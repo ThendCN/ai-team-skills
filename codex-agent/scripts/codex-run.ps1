@@ -1,16 +1,13 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Codex CLI 包装脚本 (Windows PowerShell)
+    Codex CLI wrapper (Windows PowerShell)
 .DESCRIPTION
-    用于 Claude Code codex-agent skill 调用 Codex
-    这是 codex-run.sh 的 Windows 等效脚本
-.EXAMPLE
-    .\codex-run.ps1 "实现一个 REST API"
-    .\codex-run.ps1 -File C:\tmp\prompt.txt -Dir .\my-project
-    .\codex-run.ps1 -Review -Uncommitted -Dir .\my-project -Output C:\tmp\review.txt
+    Runs Codex CLI for local AI agent workflows with realtime streaming output.
+    For `cmd.exe`, prefer `codex-run.cmd` in the same directory.
 #>
 
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [Alias("m")]
     [string]$Model = "",
@@ -47,23 +44,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-function Join-CommandArguments {
-    param([string[]]$Arguments)
-    $escaped = foreach ($arg in $Arguments) {
-        if ($null -eq $arg) {
-            '""'
-        }
-        elseif ($arg -match '[\s"`"]') {
-            '"' + ($arg -replace '([\\"])', '\\$1') + '"'
-        }
-        else {
-            $arg
-        }
-    }
-    return ($escaped -join ' ')
-}
-
-# 确保常见 bin 路径在 PATH 中（Windows pnpm 全局路径）
 if ($env:LOCALAPPDATA) {
     $pnpmGlobal = Join-Path $env:LOCALAPPDATA "pnpm"
     if (Test-Path $pnpmGlobal) {
@@ -76,32 +56,34 @@ if ($Help) {
 Usage: codex-run.ps1 [OPTIONS] [prompt...]
 
 Options:
-  -Model <model>           模型覆盖（默认用 config.toml 配置）
-  -Dir <directory>         工作目录（默认当前目录）
-  -Timeout <seconds>       超时时间（默认 600s）
-  -Sandbox <mode>          沙箱模式: full-auto(默认) | dangerous | read-only
-  -Output <file>           将最终消息写入文件
-  -File <file>             从文件读取 prompt（推荐）
-  -Review                  使用 codex exec review 模式（代码审查）
-  -Uncommitted             审查未提交的变更（仅 review 模式）
-  -Base <branch>           审查相对于指定分支的变更（仅 review 模式）
-  -Help                    显示帮助
+  -Model <model>           Override model (default from config.toml)
+  -Dir <directory>         Working directory (default: current)
+  -Timeout <seconds>       Timeout in seconds (default: 600)
+  -Sandbox <mode>          full-auto (default) | dangerous | read-only
+  -Output <file>           Tee streamed output into file
+  -File <file>             Read prompt from file
+  -Review                  Use `codex exec review` mode
+  -Uncommitted             Review uncommitted changes (review mode)
+  -Base <branch>           Review changes against branch (review mode)
+  -Help                    Show this help
 
 Examples:
-  .\codex-run.ps1 "实现一个 REST API"
+  powershell -File .\codex-run.ps1 "Implement a REST API"
   .\codex-run.ps1 -File C:\tmp\prompt.txt -Dir .\my-project
-  .\codex-run.ps1 -File C:\tmp\prompt.txt -Sandbox dangerous -Output C:\tmp\result.txt
-  .\codex-run.ps1 -Review -Uncommitted -Dir .\my-project -Output C:\tmp\review.txt
+  .\codex-run.ps1 -Sandbox dangerous "Fix login bug"
+  .\codex-run.ps1 -Review -Uncommitted -Dir .\my-project
+
+CMD recommended entry:
+  codex-run.cmd "Build a polished Snake web game"
 "@
     exit 0
 }
 
 $ExecMode = if ($Review) { "review" } else { "exec" }
 
-# --- 获取 prompt ---
 $Prompt = ""
 if ($File) {
-    if (-not (Test-Path $File)) {
+    if (-not (Test-Path $File -PathType Leaf)) {
         Write-Error "Error: Prompt file not found: $File"
         exit 1
     }
@@ -110,126 +92,216 @@ if ($File) {
 elseif ($PromptArgs -and $PromptArgs.Count -gt 0) {
     $Prompt = $PromptArgs -join " "
 }
-elseif ([System.Console]::IsInputRedirected) {
-    $Prompt = [System.Console]::In.ReadToEnd()
+elseif ([Console]::IsInputRedirected) {
+    $Prompt = [Console]::In.ReadToEnd()
 }
 elseif ($ExecMode -eq "review") {
     $Prompt = ""
 }
 else {
-    Write-Error "Error: No prompt provided. Use -File, arguments, or pipe stdin."
+    Write-Error "Error: No prompt provided. Use -File, prompt arguments, or pipe stdin."
     exit 1
 }
 
-# --- 验证工作目录 ---
 if (-not (Test-Path $Dir -PathType Container)) {
     Write-Error "Error: Working directory not found: $Dir"
     exit 1
 }
 
-# --- 验证 codex 可用 ---
-if (-not (Get-Command "codex" -ErrorAction SilentlyContinue)) {
+$codexCmd = Get-Command "codex.cmd" -ErrorAction SilentlyContinue
+if (-not $codexCmd) {
+    $codexCmd = Get-Command "codex" -ErrorAction SilentlyContinue
+}
+
+if (-not $codexCmd) {
     Write-Error "Error: codex CLI not found. Install with: pnpm add -g @openai/codex"
     exit 1
 }
 
-# --- 构建 codex 命令 ---
+$codexExecutable = $codexCmd.Source
+if (-not $codexExecutable) {
+    $codexExecutable = $codexCmd.Definition
+}
+
+$resolvedDir = (Resolve-Path $Dir).Path
 $codexArgs = @("exec")
+$stdinText = ""
 
 if ($ExecMode -eq "review") {
     $codexArgs += "review"
     if ($Uncommitted) { $codexArgs += "--uncommitted" }
     if ($Base) { $codexArgs += "--base", $Base }
     if ($Model) { $codexArgs += "-m", $Model }
+    if ($Prompt) { $codexArgs += $Prompt }
 }
 else {
     switch ($Sandbox) {
-        "full-auto"  { $codexArgs += "--full-auto" }
-        "dangerous"  { $codexArgs += "--dangerously-bypass-approvals-and-sandbox" }
-        "read-only"  { $codexArgs += "-s", "read-only" }
+        "full-auto" { $codexArgs += "--full-auto" }
+        "dangerous" { $codexArgs += "--dangerously-bypass-approvals-and-sandbox" }
+        "read-only" { $codexArgs += "-s", "read-only" }
     }
-    $codexArgs += "-C", (Resolve-Path $Dir).Path
+
+    $codexArgs += "-C", $resolvedDir
     if ($Model) { $codexArgs += "-m", $Model }
     if ($Output) { $codexArgs += "-o", $Output }
+
+    if ($Prompt) {
+        $codexArgs += "-"
+        $stdinText = $Prompt
+    }
 }
 
-# --- 执行信息 ---
 Write-Host "=== Codex Agent Starting ===" -ForegroundColor Cyan
-Write-Host "Mode: $ExecMode | Sandbox: $Sandbox | Dir: $Dir | Timeout: ${Timeout}s" -ForegroundColor DarkGray
+Write-Host "Mode: $ExecMode | Sandbox: $Sandbox | Dir: $resolvedDir | Timeout: ${Timeout}s" -ForegroundColor DarkGray
 if ($Model) { Write-Host "Model: $Model" -ForegroundColor DarkGray }
+if ($Output) { Write-Host "Output tee file: $Output" -ForegroundColor DarkGray }
 Write-Host "---" -ForegroundColor DarkGray
 
-# --- 辅助函数：使用 System.Diagnostics.Process 执行 codex ---
+function ConvertTo-CommandLine {
+    param([string[]]$Items)
+
+    $quoted = @()
+    foreach ($item in $Items) {
+        if ($null -eq $item) {
+            continue
+        }
+
+        if ($item -eq "") {
+            $quoted += '""'
+            continue
+        }
+
+        if ($item -match '[\s"]') {
+            $escaped = $item -replace '(\\*)"', '$1$1\\"'
+            $escaped = $escaped -replace '(\\+)$', '$1$1'
+            $quoted += ('"' + $escaped + '"')
+        }
+        else {
+            $quoted += $item
+        }
+    }
+
+    return ($quoted -join ' ')
+}
+
 function Invoke-Codex {
     param(
+        [Parameter(Mandatory = $true)]
+        [string]$Executable,
+
+        [Parameter(Mandatory = $true)]
         [string[]]$Arguments,
-        [string]$StdinFile = "",
+
+        [string]$StdinText = "",
+
         [string]$OutputFile = "",
+
         [int]$TimeoutSec = 600
     )
+
     $proc = New-Object System.Diagnostics.Process
-    $proc.StartInfo.FileName = "codex"
-    $proc.StartInfo.Arguments = Join-CommandArguments -Arguments $Arguments
+    $proc.StartInfo.FileName = $Executable
+    $proc.StartInfo.Arguments = ConvertTo-CommandLine -Items $Arguments
     $proc.StartInfo.UseShellExecute = $false
+    $proc.StartInfo.RedirectStandardInput = [string]::IsNullOrEmpty($StdinText) -eq $false
+    $proc.StartInfo.RedirectStandardOutput = $true
+    $proc.StartInfo.RedirectStandardError = $true
+    $proc.StartInfo.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+    $proc.StartInfo.StandardErrorEncoding = [System.Text.Encoding]::UTF8
 
-    if ($StdinFile) {
-        $proc.StartInfo.RedirectStandardInput = $true
-    }
+    $writer = $null
     if ($OutputFile) {
-        $proc.StartInfo.RedirectStandardOutput = $true
-        $proc.StartInfo.RedirectStandardError = $true
+        $outputParent = Split-Path -Parent $OutputFile
+        if ($outputParent -and -not (Test-Path $outputParent)) {
+            New-Item -Path $outputParent -ItemType Directory -Force | Out-Null
+        }
+        $writer = [System.IO.StreamWriter]::new($OutputFile, $false, [System.Text.Encoding]::UTF8)
+        $writer.AutoFlush = $true
     }
 
-    $proc.Start() | Out-Null
+    $stdoutDone = New-Object System.Threading.AutoResetEvent($false)
+    $stderrDone = New-Object System.Threading.AutoResetEvent($false)
 
-    if ($StdinFile) {
-        $proc.StandardInput.Write([System.IO.File]::ReadAllText($StdinFile, [System.Text.Encoding]::UTF8))
-        $proc.StandardInput.Close()
-    }
-    if ($OutputFile) {
-        # 读取 stdout/stderr 到文件（避免死锁需异步读取）
-        $stdoutTask = $proc.StandardOutput.ReadToEndAsync()
-        $stderrTask = $proc.StandardError.ReadToEndAsync()
-    }
+    $stdoutHandler = [System.Diagnostics.DataReceivedEventHandler]{
+        param($sender, $eventArgs)
+        if ($null -eq $eventArgs.Data) {
+            [void]$stdoutDone.Set()
+            return
+        }
 
-    $completed = $proc.WaitForExit($TimeoutSec * 1000)
-    if (-not $completed) {
-        $proc.Kill()
-        Write-Error "Error: Codex execution timed out after ${TimeoutSec}s"
-        exit 124
+        [Console]::Out.WriteLine($eventArgs.Data)
+        if ($writer) {
+            $writer.WriteLine($eventArgs.Data)
+        }
     }
 
-    if ($OutputFile) {
-        $content = $stdoutTask.Result
-        if ($stderrTask.Result) { $content += "`n" + $stderrTask.Result }
-        [System.IO.File]::WriteAllText($OutputFile, $content, [System.Text.Encoding]::UTF8)
+    $stderrHandler = [System.Diagnostics.DataReceivedEventHandler]{
+        param($sender, $eventArgs)
+        if ($null -eq $eventArgs.Data) {
+            [void]$stderrDone.Set()
+            return
+        }
+
+        [Console]::Error.WriteLine($eventArgs.Data)
+        if ($writer) {
+            $writer.WriteLine($eventArgs.Data)
+        }
     }
 
-    exit $proc.ExitCode
+    $proc.add_OutputDataReceived($stdoutHandler)
+    $proc.add_ErrorDataReceived($stderrHandler)
+
+    try {
+        [void]$proc.Start()
+
+        $proc.BeginOutputReadLine()
+        $proc.BeginErrorReadLine()
+
+        if ($proc.StartInfo.RedirectStandardInput) {
+            $proc.StandardInput.Write($StdinText)
+            $proc.StandardInput.Close()
+        }
+
+        $timeoutMs = [Math]::Max($TimeoutSec, 1) * 1000
+        if (-not $proc.WaitForExit($timeoutMs)) {
+            try {
+                $proc.Kill($true)
+            }
+            catch {
+                $proc.Kill()
+            }
+            throw "Error: Codex execution timed out after ${TimeoutSec}s"
+        }
+
+        [void]$stdoutDone.WaitOne(3000)
+        [void]$stderrDone.WaitOne(3000)
+
+        return $proc.ExitCode
+    }
+    finally {
+        $proc.remove_OutputDataReceived($stdoutHandler)
+        $proc.remove_ErrorDataReceived($stderrHandler)
+
+        if ($writer) { $writer.Dispose() }
+        $stdoutDone.Dispose()
+        $stderrDone.Dispose()
+        $proc.Dispose()
+    }
 }
 
-# --- 执行 codex CLI ---
+$exitCode = 0
+
 if ($ExecMode -eq "review") {
-    Push-Location $Dir
+    Push-Location $resolvedDir
     try {
-        if ($Prompt) { $codexArgs += $Prompt }
-        Invoke-Codex -Arguments $codexArgs -OutputFile $Output -TimeoutSec $Timeout
+        $exitCode = Invoke-Codex -Executable $codexExecutable -Arguments $codexArgs -OutputFile $Output -TimeoutSec $Timeout
     }
-    finally { Pop-Location }
+    finally {
+        Pop-Location
+    }
 }
 else {
-    if ($Prompt) {
-        $tmpFile = Join-Path ([System.IO.Path]::GetTempPath()) "codex-prompt-$(Get-Random).txt"
-        try {
-            [System.IO.File]::WriteAllText($tmpFile, $Prompt, [System.Text.Encoding]::UTF8)
-            $codexArgs += "-"
-            Invoke-Codex -Arguments $codexArgs -StdinFile $tmpFile -TimeoutSec $Timeout
-        }
-        finally {
-            if (Test-Path $tmpFile) { Remove-Item $tmpFile -Force }
-        }
-    }
-    else {
-        Invoke-Codex -Arguments $codexArgs -TimeoutSec $Timeout
-    }
+    $exitCode = Invoke-Codex -Executable $codexExecutable -Arguments $codexArgs -StdinText $stdinText -OutputFile $Output -TimeoutSec $Timeout
 }
+
+exit $exitCode
