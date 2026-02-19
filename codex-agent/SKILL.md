@@ -20,6 +20,7 @@ description: "Codex (gpt-5.3-codex high) AI 代理 - 代码编写与实现专家
 
 ### 方式一：使用包装脚本（推荐）
 
+**Linux / macOS (Bash)**：
 ```bash
 # 标准执行（full-auto 沙箱，安全默认）
 bash ~/.claude/skills/codex-agent/scripts/codex-run.sh -f /tmp/codex-prompt.txt -d <工作目录>
@@ -34,16 +35,27 @@ bash ~/.claude/skills/codex-agent/scripts/codex-run.sh -r --uncommitted -d <工�
 bash ~/.claude/skills/codex-agent/scripts/codex-run.sh -f /tmp/codex-prompt.txt -o /tmp/codex-result.txt -d <工作目录>
 ```
 
-```powershell
-# Windows (PowerShell) - 标准执行
-pwsh ~/.claude/skills/codex-agent/scripts/codex-run.ps1 -File $env:TEMP\codex-prompt.txt -Dir <工作目录>
+**Windows（重要：必须使用 powershell.exe 调用 .ps1 脚本）**：
+
+> Claude Code 在 Windows 上使用 bash shell，但 .ps1 脚本不能用 bash 执行。
+> 必须通过 `powershell.exe -ExecutionPolicy Bypass -File` 调用。
+> 不要使用 `pwsh`（除非确认已安装 PowerShell 7）。
+> 不要使用 `-Command "& 'script.ps1'"` 形式（转义问题多）。
+
+```bash
+# 标准执行（从 bash 调用 PowerShell 脚本）
+powershell.exe -ExecutionPolicy Bypass -File ~/.claude/skills/codex-agent/scripts/codex-run.ps1 -File /tmp/codex-prompt.txt -Dir <工作目录>
 
 # 需要完整权限时
-pwsh ~/.claude/skills/codex-agent/scripts/codex-run.ps1 -File $env:TEMP\codex-prompt.txt -Sandbox dangerous -Dir <工作目录>
+powershell.exe -ExecutionPolicy Bypass -File ~/.claude/skills/codex-agent/scripts/codex-run.ps1 -File /tmp/codex-prompt.txt -Sandbox dangerous -Dir <工作目录>
 
 # 只读代码审查
-pwsh ~/.claude/skills/codex-agent/scripts/codex-run.ps1 -Review -Uncommitted -Dir <工作目录> -Output $env:TEMP\review.txt
+powershell.exe -ExecutionPolicy Bypass -File ~/.claude/skills/codex-agent/scripts/codex-run.ps1 -Review -Uncommitted -Dir <工作目录> -Output /tmp/review.txt
 ```
+
+**Windows 注意事项**：
+- Prompt 文件必须是 UTF-8 编码（无 BOM），脚本内部已处理 BOM 问题
+- 脚本已自动处理 npm/pnpm 安装的 .ps1 包装脚本兼容性问题
 
 ### 方式二：直接调用 codex CLI（备选）
 
@@ -68,14 +80,19 @@ codex-run.sh / codex-run.ps1 [OPTIONS] [prompt...]
 Bash:                                PowerShell:
   -m, --model <model>                  -Model <model>
   -d, --dir <directory>                -Dir <directory>
-  -t, --timeout <seconds>              -Timeout <seconds>
-  -s, --sandbox <mode>                 -Sandbox <mode>
+  -t, --timeout <seconds>              -Timeout <seconds>  (默认 900s)
+  -s, --sandbox <mode>                 -Sandbox <mode>     (默认 full-auto)
   -o, --output <file>                  -Output <file>
   -f, --file <file>                    -File <file>
   -r, --review                         -Review
       --uncommitted                    -Uncommitted
       --base <branch>                  -Base <branch>
 ```
+
+**默认值**：
+- 超时时间：900s (15分钟)，适合 codex 任务的典型执行时间
+- 沙箱模式：full-auto（安全默认），实际项目通常需要 dangerous 模式
+- 脚本默认跳过 git 仓库检查（`--skip-git-repo-check`），可在任何目录中使用
 
 ## Codex CLI 关键参数映射（重要）
 
@@ -92,11 +109,16 @@ Bash:                                PowerShell:
 
 ## 沙箱模式说明
 
-| 模式 | codex 参数 | 适用场景 |
-|------|-----------|----------|
-| `full-auto` | `--full-auto` | 大多数代码编写任务 |
-| `dangerous` | `--dangerously-bypass-approvals-and-sandbox` | 需要安装依赖、运行测试、修改配置 |
-| `read-only` | `-s read-only` | 代码审查、分析 |
+| 模式 | codex 参数 | 适用场景 | 推荐度 |
+|------|-----------|----------|--------|
+| `full-auto` | `--full-auto` | 简单的代码编写任务（不需要安装依赖） | 默认 |
+| `dangerous` | `--dangerously-bypass-approvals-and-sandbox` | **实际项目开发**：需要安装依赖、运行测试、修改配置 | ⭐ 常用 |
+| `read-only` | `-s read-only` | 代码审查、分析（不修改文件） | 审查专用 |
+
+**实际使用建议**：
+- 大多数实际项目任务需要使用 `dangerous` 模式
+- `full-auto` 模式限制较多，适合简单场景
+- 使用 `-s dangerous` 参数指定沙箱模式
 
 ## 两种模式
 
@@ -104,28 +126,51 @@ Bash:                                PowerShell:
 
 用于代码编写、功能实现、bug 修复、重构等需要修改文件的任务。
 
+**常用命令**：
 ```bash
-# 通过脚本
-bash ~/.claude/skills/codex-agent/scripts/codex-run.sh -f /tmp/prompt.txt -s dangerous -d <dir> -o /tmp/result.txt
+# Linux/macOS - 实际项目开发（推荐）
+bash ~/.claude/skills/codex-agent/scripts/codex-run.sh \
+  -f {workdir}/.tmp/prompt.txt \
+  -s dangerous \
+  -o {workdir}/.tmp/output.txt \
+  -d {workdir}
 
-# 直接调用（prompt 通过 stdin）
-codex exec -s danger-full-access -C <dir> -o /tmp/result.txt - < /tmp/prompt.txt
+# Windows - 实际项目开发（推荐）
+powershell.exe -ExecutionPolicy Bypass -File ~/.claude/skills/codex-agent/scripts/codex-run.ps1 \
+  -File {workdir}/.tmp/prompt.txt \
+  -Sandbox dangerous \
+  -Output {workdir}/.tmp/output.txt \
+  -Dir {workdir}
 ```
+
+**参数说明**：
+- `-s dangerous` / `-Sandbox dangerous`：允许安装依赖、运行测试（实际项目必需）
+- `-o` / `-Output`：将结果写入文件，便于后续处理
+- `-f` / `-File`：从文件读取 prompt，避免 shell 转义问题
 
 ### review 模式 - 代码审查
 
 用于代码审查、安全检查、质量分析等只读任务。
 
+**常用命令**：
 ```bash
-# 审查未提交变更
-bash ~/.claude/skills/codex-agent/scripts/codex-run.sh -r --uncommitted -d <dir> -o /tmp/review.txt
+# Linux/macOS - 审查未提交的变更
+bash ~/.claude/skills/codex-agent/scripts/codex-run.sh \
+  -r --uncommitted \
+  -o {workdir}/.tmp/review.txt \
+  -d {workdir}
 
-# 审查相对于某分支的变更
-bash ~/.claude/skills/codex-agent/scripts/codex-run.sh -r --base main -d <dir> -o /tmp/review.txt
-
-# 直接调用（注意：review 输出在 stderr，需要 2>&1）
-cd <dir> && codex exec review --uncommitted > /tmp/review.txt 2>&1
+# Windows - 审查未提交的变更
+powershell.exe -ExecutionPolicy Bypass -File ~/.claude/skills/codex-agent/scripts/codex-run.ps1 \
+  -Review -Uncommitted \
+  -Output {workdir}/.tmp/review.txt \
+  -Dir {workdir}
 ```
+
+**参数说明**：
+- `-r` / `-Review`：启用 review 模式
+- `--uncommitted` / `-Uncommitted`：审查未提交的变更
+- `--base <branch>` / `-Base <branch>`：审查相对于指定分支的变更
 
 **review 模式注意事项**：
 - `codex exec review` 不支持 `-C`（工作目录）参数，需要先 `cd`
@@ -174,31 +219,14 @@ Claude 随后读取输出文件获取执行结果。
 | `unexpected argument '-f'` | codex exec 不支持 -f | 使用 stdin：`codex exec ... - < file.txt` |
 | review 输出为空 | review 输出在 stderr | 使用 `2>&1` 重定向 |
 | `cannot be used with '[PROMPT]'` | review --uncommitted 和 prompt 冲突 | 二选一：用 --uncommitted 或自定义 prompt |
+| Windows PS1 脚本启动 codex 失败 | npm/pnpm 安装的 codex 是 .ps1 包装脚本，Process.Start() 无法直接执行 | 脚本已自动处理：优先使用 .cmd 版本，否则通过 powershell.exe 间接执行 |
 
-## 并行任务拆分（重要）
-
-**Codex 模型运行时间较长（通常 5-15 分钟），可通过任务拆分 + 并行执行提升效率。**
-
-### 执行策略
-
-1. **分析任务** - 收到用户请求后，先分析是否可以拆分为多个独立子任务
-2. **拆分原则**：
-   - 按文件/模块拆分：不同文件的修改可以并行
-   - 按功能拆分：独立功能（如 API + 测试）可以并行
-   - 按层次拆分：前端组件 vs 后端逻辑 vs 数据库迁移
-   - **不可拆分的情况**：子任务之间有强依赖（B 必须基于 A 的输出）
-3. **并行执行** - 使用 Bash 工具的 `run_in_background: true` 模式启动多个后台任务
-4. **汇总审查** - 所有子任务完成后，Claude 审查并整合结果
-
-### 不拆分的情况
-
-以下场景直接单任务执行，不做拆分：
-- 任务本身很简单（单文件小改动）
-- 子任务之间有强依赖关系
-- 用户明确要求按顺序执行
+**注意**：包装脚本默认跳过 git 仓库检查，可在任何目录中使用。如果需要 git 相关功能（如 `--uncommitted`），请确保工作目录是 git 仓库。
 
 ## 任务路由
 
 当用户请求包含以下关键词时，应路由到 codex-agent：
 - 实现、编写、修复、重构、测试、代码、功能、API、后端、数据库、bug
 - review、审查、检查代码、代码质量
+
+**注意**：如果任务涉及多个独立模块或需要 UI + 后端协作，考虑使用 `/ai-team` 进行多 Agent 并行协作。

@@ -10,7 +10,7 @@ export PATH="$HOME/.local/share/pnpm:$HOME/.local/bin:/usr/local/bin:/usr/bin:/b
 # 默认值
 MODEL=""
 WORKDIR="."
-TIMEOUT=600
+TIMEOUT=900  # 15分钟，codex 任务通常需要 5-15 分钟
 SANDBOX="full-auto"
 OUTPUT_FILE=""
 PROMPT_FILE=""
@@ -24,7 +24,7 @@ Usage: codex-run.sh [OPTIONS] [prompt...]
 Options:
   -m, --model <model>        模型覆盖（默认用 config.toml 配置）
   -d, --dir <directory>      工作目录（默认当前目录）
-  -t, --timeout <seconds>    超时时间（默认 600s）
+  -t, --timeout <seconds>    超时时间（默认 900s）
   -s, --sandbox <mode>       沙箱模式: full-auto(默认) | dangerous | read-only
   -o, --output <file>        将最终消息写入文件
   -f, --file <file>          从文件读取 prompt（推荐）
@@ -119,6 +119,9 @@ if [[ "$MODE" == "review" ]]; then
     if [[ -n "$MODEL" ]]; then
         CODEX_ARGS+=(-m "$MODEL")
     fi
+
+    # 默认跳过 git 仓库检查（简化使用）
+    CODEX_ARGS+=(--skip-git-repo-check)
 else
     # 普通 exec 模式
 
@@ -142,6 +145,9 @@ else
     if [[ -n "$MODEL" ]]; then
         CODEX_ARGS+=(-m "$MODEL")
     fi
+
+    # 默认跳过 git 仓库检查（简化使用）
+    CODEX_ARGS+=(--skip-git-repo-check)
 
     # 输出文件（仅 exec 模式支持 -o）
     if [[ -n "$OUTPUT_FILE" ]]; then

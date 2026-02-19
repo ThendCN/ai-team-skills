@@ -20,13 +20,26 @@ description: "Gemini (gemini-3-pro-preview) AI 代理 - UI 设计与前端开发
 
 **推荐：使用 `-f` 文件模式传递 prompt（避免 shell 转义问题）**
 
+**Linux / macOS (Bash)**：
 ```bash
-# Linux / macOS
 bash .claude/skills/gemini-agent/scripts/gemini-run.sh -f /tmp/gemini-prompt.txt -d <工作目录>
-
-# Windows (PowerShell)
-pwsh .claude/skills/gemini-agent/scripts/gemini-run.ps1 -File $env:TEMP\gemini-prompt.txt -Dir <工作目录>
 ```
+
+**Windows（重要：必须使用 powershell.exe 调用 .ps1 脚本）**：
+
+> Claude Code 在 Windows 上使用 bash shell，但 .ps1 脚本不能用 bash 执行。
+> 必须通过 `powershell.exe -ExecutionPolicy Bypass -File` 调用。
+> 不要使用 `pwsh`（除非确认已安装 PowerShell 7）。
+> 不要使用 `-Command "& 'script.ps1'"` 形式（转义问题多）。
+
+```bash
+# 从 bash 调用 PowerShell 脚本
+powershell.exe -ExecutionPolicy Bypass -File ~/.claude/skills/gemini-agent/scripts/gemini-run.ps1 -File /tmp/gemini-prompt.txt -Dir <工作目录>
+```
+
+**Windows 注意事项**：
+- Prompt 文件必须是 UTF-8 编码（无 BOM）
+- 脚本已自动处理 npm/pnpm 安装的 .ps1 包装脚本兼容性问题
 
 ### 脚本参数
 
@@ -87,3 +100,5 @@ gemini-agent 是 gemini-ui 的增强版：
 
 当用户请求包含以下关键词时，应路由到 gemini-agent：
 - 设计、UI、组件、页面、布局、样式、美化、前端、界面、视觉
+
+**注意**：如果任务涉及 UI + 后端逻辑的全栈开发，考虑使用 `/ai-team` 进行多 Agent 协作。
