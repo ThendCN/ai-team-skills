@@ -1,5 +1,7 @@
 # AI Team Skills for Claude Code
 
+中文 | [English](README_EN.md)
+
 将 Gemini CLI 和 Codex CLI 集成为 Claude Code 的 skill，让 Claude Code 能够：
 
 - 委派 UI 设计任务给 **Gemini gemini-3-pro-preview**（gemini-agent）
