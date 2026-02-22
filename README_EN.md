@@ -14,7 +14,10 @@ Integrate Gemini CLI and Codex CLI as Claude Code skills, enabling Claude Code t
 Claude Code (Orchestrator)
     ├── ai-team skill       → Multi-agent pipeline orchestration
     ├── gemini-agent skill  → gemini-cli → UI/Frontend design
-    └── codex-agent skill   → codex-cli  → Code writing/review
+    ├── codex-agent skill   → codex-cli  → Code writing/review
+    └── agents/             → Worker Agent definitions (required for ai-team)
+        ├── codex-worker.md → Codex Worker subagent
+        └── gemini-worker.md → Gemini Worker subagent
 ```
 
 ## Skills
@@ -84,11 +87,12 @@ Mode C: Multi-module parallel
 
 ## Installation
 
-Copy the skill directories to your Claude Code skills directory:
+Copy the skill directories and agent definitions to your Claude Code directory:
 
 ```bash
 # Linux / macOS - Install all
 cp -r ai-team gemini-agent codex-agent ~/.claude/skills/
+mkdir -p ~/.claude/agents && cp agents/*.md ~/.claude/agents/
 
 # Linux / macOS - Single agent only (no pipeline orchestration)
 cp -r gemini-agent codex-agent ~/.claude/skills/
@@ -97,13 +101,15 @@ cp -r gemini-agent codex-agent ~/.claude/skills/
 ```powershell
 # Windows (PowerShell) - Install all
 @("ai-team", "gemini-agent", "codex-agent") | ForEach-Object { Copy-Item -Recurse $_ "$env:USERPROFILE\.claude\skills\" }
+New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\agents" | Out-Null
+Copy-Item agents\*.md "$env:USERPROFILE\.claude\agents\"
 
 # Windows (PowerShell) - Single agent only
 @("gemini-agent", "codex-agent") | ForEach-Object { Copy-Item -Recurse $_ "$env:USERPROFILE\.claude\skills\" }
 ```
 
-> Windows users: Wrapper scripts are provided in both `.sh` (Bash) and `.ps1` (PowerShell) versions.
-> Claude Code on Windows will automatically use `.ps1` scripts (requires PowerShell 5.1+ or pwsh).
+> **Important**: To use the ai-team pipeline mode, you must install the Worker Agent definition files from `agents/` to `~/.claude/agents/`.
+> These files define the `codex-worker` and `gemini-worker` custom subagents required for Team mode to function.
 
 ## License
 

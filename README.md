@@ -14,7 +14,10 @@
 Claude Code (编排者/大脑)
     ├── ai-team skill       → 多 Agent 流水线编排
     ├── gemini-agent skill  → gemini-cli → UI/前端设计
-    └── codex-agent skill   → codex-cli  → 代码编写/审查
+    ├── codex-agent skill   → codex-cli  → 代码编写/审查
+    └── agents/             → Worker Agent 定义（ai-team 流水线所需）
+        ├── codex-worker.md → Codex Worker subagent
+        └── gemini-worker.md → Gemini Worker subagent
 ```
 
 ## Skills
@@ -84,11 +87,12 @@ Claude Code 分析任务 → 构建 prompt → 调用对应 CLI → 收集结果
 
 ## 安装
 
-将 skill 目录复制到你的 Claude Code skills 目录：
+将 skill 目录和 agent 定义复制到你的 Claude Code 目录：
 
 ```bash
 # Linux / macOS - 全部安装
 cp -r ai-team gemini-agent codex-agent ~/.claude/skills/
+mkdir -p ~/.claude/agents && cp agents/*.md ~/.claude/agents/
 
 # Linux / macOS - 只安装单 agent（不需要流水线编排）
 cp -r gemini-agent codex-agent ~/.claude/skills/
@@ -97,13 +101,15 @@ cp -r gemini-agent codex-agent ~/.claude/skills/
 ```powershell
 # Windows (PowerShell) - 全部安装
 @("ai-team", "gemini-agent", "codex-agent") | ForEach-Object { Copy-Item -Recurse $_ "$env:USERPROFILE\.claude\skills\" }
+New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\agents" | Out-Null
+Copy-Item agents\*.md "$env:USERPROFILE\.claude\agents\"
 
 # Windows (PowerShell) - 只安装单 agent
 @("gemini-agent", "codex-agent") | ForEach-Object { Copy-Item -Recurse $_ "$env:USERPROFILE\.claude\skills\" }
 ```
 
-> Windows 用户说明：包装脚本同时提供 `.sh`（Bash）和 `.ps1`（PowerShell）两个版本。
-> Claude Code 在 Windows 上会自动使用 `.ps1` 脚本（需要 PowerShell 5.1+ 或 pwsh）。
+> **重要**：使用 ai-team 流水线模式时，必须安装 `agents/` 目录下的 Worker Agent 定义文件到 `~/.claude/agents/`。
+> 这些文件定义了 `codex-worker` 和 `gemini-worker` 两个自定义 subagent，是 Team 模式正常运行的前提。
 
 ## License
 
