@@ -114,6 +114,35 @@ if ($Mode -eq "yolo") {
 
 $geminiArgs += $Prompt
 
+function Resolve-CliStartInfo {
+    param(
+        [System.Diagnostics.ProcessStartInfo]$StartInfo,
+        [string]$CommandName,
+        [string]$ArgumentString
+    )
+    $cmd = Get-Command $CommandName -ErrorAction Stop
+    $cmdPath = $cmd.Source
+
+    if ($cmdPath -match '\.ps1$') {
+        $cmdVersion = $cmdPath -replace '\.ps1$', '.cmd'
+        if (Test-Path $cmdVersion) {
+            $StartInfo.FileName = $cmdVersion
+            $StartInfo.Arguments = $ArgumentString
+        }
+        else {
+            $psExe = if (Get-Command "pwsh" -ErrorAction SilentlyContinue) {
+                (Get-Command "pwsh").Source
+            } else { "powershell.exe" }
+            $StartInfo.FileName = $psExe
+            $StartInfo.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$cmdPath`" $ArgumentString"
+        }
+    }
+    else {
+        $StartInfo.FileName = $cmdPath
+        $StartInfo.Arguments = $ArgumentString
+    }
+}
+
 # 执行 gemini CLI（使用 System.Diagnostics.Process 实现流式输出 + 超时控制）
 Push-Location $Dir
 try {
@@ -122,9 +151,10 @@ try {
     Write-Host "---" -ForegroundColor DarkGray
 
     $proc = New-Object System.Diagnostics.Process
-    $proc.StartInfo.FileName = "gemini"
-    $proc.StartInfo.Arguments = Join-CommandArguments -Arguments $geminiArgs
+    $argString = Join-CommandArguments -Arguments $geminiArgs
+    Resolve-CliStartInfo -StartInfo $proc.StartInfo -CommandName "gemini" -ArgumentString $argString
     $proc.StartInfo.UseShellExecute = $false
+    $proc.StartInfo.WorkingDirectory = (Resolve-Path $Dir).Path
     $proc.Start() | Out-Null
 
     $completed = $proc.WaitForExit($Timeout * 1000)
