@@ -16,10 +16,21 @@ description: "Codex (gpt-5.3-codex high) AI 代理 - 代码编写与实现专家
 
 也可由 Claude Code 在分析任务后自动委派（当任务涉及代码编写/实现/修复/重构/测试/审查时）。
 
+## 执行步骤
+
+1. **判断当前平台**：检查运行环境是 Linux/macOS 还是 Windows
+   - Linux/macOS → 使用 `codex-run.sh`
+   - Windows → 使用 `codex-run.ps1`（必须通过 `powershell.exe -ExecutionPolicy Bypass -File` 调用）
+2. **准备 prompt 文件**：将任务描述写入临时文件（推荐使用 `-f` / `-File` 参数，避免 shell 转义问题）
+3. **选择沙箱模式**：简单任务用 `full-auto`（默认），实际项目开发用 `dangerous`
+4. **执行脚本**：调用对应平台的包装脚本
+5. **读取结果**：通过 `-o` / `-Output` 指定的输出文件获取执行结果
+
 ## 执行方式
 
 ### 方式一：使用包装脚本（推荐）
 
+**Linux / macOS (Bash)**：
 ```bash
 # 标准执行（full-auto 沙箱，安全默认）
 bash ~/.claude/skills/codex-agent/scripts/codex-run.sh -f /tmp/codex-prompt.txt -d <工作目录>
@@ -34,16 +45,27 @@ bash ~/.claude/skills/codex-agent/scripts/codex-run.sh -r --uncommitted -d <工�
 bash ~/.claude/skills/codex-agent/scripts/codex-run.sh -f /tmp/codex-prompt.txt -o /tmp/codex-result.txt -d <工作目录>
 ```
 
-```powershell
-# Windows (PowerShell) - 标准执行
-pwsh ~/.claude/skills/codex-agent/scripts/codex-run.ps1 -File $env:TEMP\codex-prompt.txt -Dir <工作目录>
+**Windows（重要：必须使用 powershell.exe 调用 .ps1 脚本）**：
+
+> Claude Code 在 Windows 上使用 bash shell，但 .ps1 脚本不能用 bash 执行。
+> 必须通过 `powershell.exe -ExecutionPolicy Bypass -File` 调用。
+> 不要使用 `pwsh`（除非确认已安装 PowerShell 7）。
+
+```bash
+# 标准执行（从 bash 调用 PowerShell 脚本）
+powershell.exe -ExecutionPolicy Bypass -File ~/.claude/skills/codex-agent/scripts/codex-run.ps1 -File /tmp/codex-prompt.txt -Dir <工作目录>
 
 # 需要完整权限时
-pwsh ~/.claude/skills/codex-agent/scripts/codex-run.ps1 -File $env:TEMP\codex-prompt.txt -Sandbox dangerous -Dir <工作目录>
+powershell.exe -ExecutionPolicy Bypass -File ~/.claude/skills/codex-agent/scripts/codex-run.ps1 -File /tmp/codex-prompt.txt -Sandbox dangerous -Dir <工作目录>
 
 # 只读代码审查
-pwsh ~/.claude/skills/codex-agent/scripts/codex-run.ps1 -Review -Uncommitted -Dir <工作目录> -Output $env:TEMP\review.txt
+powershell.exe -ExecutionPolicy Bypass -File ~/.claude/skills/codex-agent/scripts/codex-run.ps1 -Review -Uncommitted -Dir <工作目录> -Output /tmp/review.txt
 ```
+
+**Windows 注意事项**：
+- 工作目录（-Dir）必须是 git 仓库，否则 codex CLI 会拒绝执行
+- Prompt 文件必须是 UTF-8 编码（无 BOM），脚本内部已处理 BOM 问题
+- 脚本已自动处理 npm/pnpm 安装的 .ps1 包装脚本兼容性问题
 
 ### 方式二：直接调用 codex CLI（备选）
 
@@ -68,14 +90,16 @@ codex-run.sh / codex-run.ps1 [OPTIONS] [prompt...]
 Bash:                                PowerShell:
   -m, --model <model>                  -Model <model>
   -d, --dir <directory>                -Dir <directory>
-  -t, --timeout <seconds>              -Timeout <seconds>
-  -s, --sandbox <mode>                 -Sandbox <mode>
+  -t, --timeout <seconds>              -Timeout <seconds>  (默认 900s)
+  -s, --sandbox <mode>                 -Sandbox <mode>     (默认 full-auto)
   -o, --output <file>                  -Output <file>
   -f, --file <file>                    -File <file>
   -r, --review                         -Review
       --uncommitted                    -Uncommitted
       --base <branch>                  -Base <branch>
 ```
+
+**默认行为**：脚本默认跳过 git 仓库检查（`--skip-git-repo-check`），可在任何目录中使用。
 
 ## Codex CLI 关键参数映射（重要）
 
@@ -174,6 +198,7 @@ Claude 随后读取输出文件获取执行结果。
 | `unexpected argument '-f'` | codex exec 不支持 -f | 使用 stdin：`codex exec ... - < file.txt` |
 | review 输出为空 | review 输出在 stderr | 使用 `2>&1` 重定向 |
 | `cannot be used with '[PROMPT]'` | review --uncommitted 和 prompt 冲突 | 二选一：用 --uncommitted 或自定义 prompt |
+| Windows PS1 脚本启动 codex 失败 | npm/pnpm 安装的 codex 是 .ps1 包装脚本，Process.Start() 无法直接执行 | 脚本已自动处理：优先使用 .cmd 版本，否则通过 powershell.exe 间接执行 |
 
 ## 并行任务拆分（重要）
 
