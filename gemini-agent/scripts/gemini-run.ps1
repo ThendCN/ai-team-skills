@@ -122,8 +122,29 @@ try {
     Write-Host "---" -ForegroundColor DarkGray
 
     $proc = New-Object System.Diagnostics.Process
-    $proc.StartInfo.FileName = "gemini"
-    $proc.StartInfo.Arguments = Join-CommandArguments -Arguments $geminiArgs
+    $argString = Join-CommandArguments -Arguments $geminiArgs
+
+    # npm/pnpm 在 Windows 上生成 .ps1 包装脚本，Process.Start() 无法直接执行
+    $cmd = Get-Command "gemini" -ErrorAction Stop
+    $cmdPath = $cmd.Source
+    if ($cmdPath -match '\.ps1$') {
+        $cmdVersion = $cmdPath -replace '\.ps1$', '.cmd'
+        if (Test-Path $cmdVersion) {
+            $proc.StartInfo.FileName = $cmdVersion
+            $proc.StartInfo.Arguments = $argString
+        }
+        else {
+            $psExe = if (Get-Command "pwsh" -ErrorAction SilentlyContinue) {
+                (Get-Command "pwsh").Source
+            } else { "powershell.exe" }
+            $proc.StartInfo.FileName = $psExe
+            $proc.StartInfo.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$cmdPath`" $argString"
+        }
+    }
+    else {
+        $proc.StartInfo.FileName = $cmdPath
+        $proc.StartInfo.Arguments = $argString
+    }
     $proc.StartInfo.UseShellExecute = $false
     $proc.Start() | Out-Null
 

@@ -19,7 +19,7 @@ param(
     [string]$Dir = ".",
 
     [Alias("t")]
-    [int]$Timeout = 600,
+    [int]$Timeout = 900,
 
     [Alias("s")]
     [ValidateSet("full-auto", "dangerous", "read-only")]
@@ -78,7 +78,7 @@ Usage: codex-run.ps1 [OPTIONS] [prompt...]
 Options:
   -Model <model>           模型覆盖（默认用 config.toml 配置）
   -Dir <directory>         工作目录（默认当前目录）
-  -Timeout <seconds>       超时时间（默认 600s）
+  -Timeout <seconds>       超时时间（默认 900s）
   -Sandbox <mode>          沙箱模式: full-auto(默认) | dangerous | read-only
   -Output <file>           将最终消息写入文件
   -File <file>             从文件读取 prompt（推荐）
@@ -141,6 +141,7 @@ if ($ExecMode -eq "review") {
     if ($Uncommitted) { $codexArgs += "--uncommitted" }
     if ($Base) { $codexArgs += "--base", $Base }
     if ($Model) { $codexArgs += "-m", $Model }
+    $codexArgs += "--skip-git-repo-check"
 }
 else {
     switch ($Sandbox) {
@@ -151,6 +152,7 @@ else {
     $codexArgs += "-C", (Resolve-Path $Dir).Path
     if ($Model) { $codexArgs += "-m", $Model }
     if ($Output) { $codexArgs += "-o", $Output }
+    $codexArgs += "--skip-git-repo-check"
 }
 
 # --- 执行信息 ---
@@ -159,17 +161,49 @@ Write-Host "Mode: $ExecMode | Sandbox: $Sandbox | Dir: $Dir | Timeout: ${Timeout
 if ($Model) { Write-Host "Model: $Model" -ForegroundColor DarkGray }
 Write-Host "---" -ForegroundColor DarkGray
 
+# --- 辅助函数：解析 CLI 可执行文件路径（处理 npm/pnpm 的 .ps1 包装问题）---
+function Resolve-CliStartInfo {
+    param(
+        [System.Diagnostics.ProcessStartInfo]$StartInfo,
+        [string]$CommandName,
+        [string]$ArgumentString
+    )
+    $cmd = Get-Command $CommandName -ErrorAction Stop
+    $cmdPath = $cmd.Source
+
+    # npm/pnpm 在 Windows 上生成 .ps1 包装脚本，Process.Start() 无法直接执行
+    # 优先使用同目录下的 .cmd 版本，否则通过 powershell.exe 间接执行
+    if ($cmdPath -match '\.ps1$') {
+        $cmdVersion = $cmdPath -replace '\.ps1$', '.cmd'
+        if (Test-Path $cmdVersion) {
+            $StartInfo.FileName = $cmdVersion
+            $StartInfo.Arguments = $ArgumentString
+        }
+        else {
+            $psExe = if (Get-Command "pwsh" -ErrorAction SilentlyContinue) {
+                (Get-Command "pwsh").Source
+            } else { "powershell.exe" }
+            $StartInfo.FileName = $psExe
+            $StartInfo.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$cmdPath`" $ArgumentString"
+        }
+    }
+    else {
+        $StartInfo.FileName = $cmdPath
+        $StartInfo.Arguments = $ArgumentString
+    }
+}
+
 # --- 辅助函数：使用 System.Diagnostics.Process 执行 codex ---
 function Invoke-Codex {
     param(
         [string[]]$Arguments,
         [string]$StdinFile = "",
         [string]$OutputFile = "",
-        [int]$TimeoutSec = 600
+        [int]$TimeoutSec = 900
     )
     $proc = New-Object System.Diagnostics.Process
-    $proc.StartInfo.FileName = "codex"
-    $proc.StartInfo.Arguments = Join-CommandArguments -Arguments $Arguments
+    $argString = Join-CommandArguments -Arguments $Arguments
+    Resolve-CliStartInfo -StartInfo $proc.StartInfo -CommandName "codex" -ArgumentString $argString
     $proc.StartInfo.UseShellExecute = $false
 
     if ($StdinFile) {

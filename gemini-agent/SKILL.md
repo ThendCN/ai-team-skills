@@ -16,17 +16,32 @@ description: "Gemini (gemini-3-pro-preview) AI 代理 - UI 设计与前端开发
 
 也可由 Claude Code 在分析任务后自动委派（当任务涉及 UI/设计/组件/页面/布局/样式时）。
 
+## 执行步骤
+
+1. **判断当前平台**：检查运行环境是 Linux/macOS 还是 Windows
+   - Linux/macOS → 使用 `gemini-run.sh`
+   - Windows → 使用 `gemini-run.ps1`（必须通过 `powershell.exe -ExecutionPolicy Bypass -File` 调用）
+2. **准备 prompt 文件**：将 UI 设计描述写入临时文件（推荐使用 `-f` / `-File` 参数）
+3. **执行脚本**：调用对应平台的包装脚本
+4. **检查生成的文件**：通过 git status 或 ls 查看 Gemini 生成了哪些文件
+
 ## 执行方式
 
 **推荐：使用 `-f` 文件模式传递 prompt（避免 shell 转义问题）**
 
+**Linux / macOS (Bash)**：
 ```bash
-# Linux / macOS
-bash .claude/skills/gemini-agent/scripts/gemini-run.sh -f /tmp/gemini-prompt.txt -d <工作目录>
-
-# Windows (PowerShell)
-pwsh .claude/skills/gemini-agent/scripts/gemini-run.ps1 -File $env:TEMP\gemini-prompt.txt -Dir <工作目录>
+bash ~/.claude/skills/gemini-agent/scripts/gemini-run.sh -f /tmp/gemini-prompt.txt -d <工作目录>
 ```
+
+**Windows（必须使用 powershell.exe 调用 .ps1 脚本）**：
+```bash
+powershell.exe -ExecutionPolicy Bypass -File ~/.claude/skills/gemini-agent/scripts/gemini-run.ps1 -File /tmp/gemini-prompt.txt -Dir <工作目录>
+```
+
+**Windows 注意事项**：
+- Prompt 文件必须是 UTF-8 编码（无 BOM）
+- 脚本已自动处理 npm/pnpm 安装的 .ps1 包装脚本兼容性问题
 
 ### 脚本参数
 
