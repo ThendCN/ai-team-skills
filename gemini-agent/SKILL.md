@@ -1,11 +1,14 @@
 ---
 name: gemini-agent
-description: "Gemini (gemini-3-pro-preview) AI 代理 - UI 设计与前端开发专家。gemini-ui 的增强版，支持包装脚本、错误处理、流水线模式。触发条件：UI 设计、前端组件、页面布局、视觉设计、样式美化。使用 /gemini-agent <描述> 或 /design-ui <描述> 委派 UI 设计任务给 Gemini。"
+description: "Gemini AI 代理（通过 Antigravity CLI agy 调用）- UI 设计与前端开发专家。gemini-ui 的增强版，支持包装脚本、错误处理、流水线模式。触发条件：UI 设计、前端组件、页面布局、视觉设计、样式美化。使用 /gemini-agent <描述> 或 /design-ui <描述> 委派 UI 设计任务给 Gemini。"
 ---
 
 # Gemini Agent - AI 团队 UI 设计专家
 
-将 UI 设计和前端开发任务委派给 Gemini (gemini-3-pro-preview)，由 Claude Code 编排和审查。
+将 UI 设计和前端开发任务委派给 Gemini，由 Claude Code 编排和审查。
+
+> gemini CLI 已不再支持个人账号登录（报 `IneligibleTierError`），脚本改为调用 Antigravity CLI `agy`。
+> 默认模型为 `gemini-3.8-flash-high`（Gemini 3.8 Flash，high 档），可用 `agy models` 查看可选模型，用 `--model` 覆盖。
 
 ## 用法
 
@@ -24,6 +27,7 @@ description: "Gemini (gemini-3-pro-preview) AI 代理 - UI 设计与前端开发
 2. **准备 prompt 文件**：将 UI 设计描述写入临时文件（推荐使用 `-f` / `-File` 参数）
 3. **执行脚本**：调用对应平台的包装脚本
 4. **检查生成的文件**：通过 git status 或 ls 查看 Gemini 生成了哪些文件
+5. **记下 SESSION_ID**：脚本结束时在 stderr 打印 `SESSION_ID: <id>`，需要修改时用 `--resume` / `-Resume` 续聊
 
 ## 执行方式
 
@@ -32,6 +36,12 @@ description: "Gemini (gemini-3-pro-preview) AI 代理 - UI 设计与前端开发
 **Linux / macOS (Bash)**：
 ```bash
 bash ~/.claude/skills/gemini-agent/scripts/gemini-run.sh -f /tmp/gemini-prompt.txt -d <工作目录>
+
+# 续聊之前的会话（审查不通过后接着改）
+bash ~/.claude/skills/gemini-agent/scripts/gemini-run.sh --resume <SESSION_ID> -f /tmp/gemini-fix.txt -d <工作目录>
+
+# 只读审查（plan 模式，不会修改文件）
+bash ~/.claude/skills/gemini-agent/scripts/gemini-run.sh -m plan -f /tmp/review-prompt.txt -d <工作目录> -o /tmp/review.txt
 ```
 
 **Windows（必须使用 powershell.exe 调用 .ps1 脚本）**：
@@ -49,25 +59,29 @@ powershell.exe -ExecutionPolicy Bypass -File ~/.claude/skills/gemini-agent/scrip
 gemini-run.sh / gemini-run.ps1 [OPTIONS] [prompt...]
 
 Bash:                                PowerShell:
-  -m, --mode <yolo|prompt>             -Mode <yolo|prompt>
+  -m, --mode <yolo|plan>               -Mode <yolo|plan>    (默认 yolo；plan 为只读)
   --model <model>                      -Model <model>
   -d, --dir <directory>                -Dir <directory>
-  -t, --timeout <seconds>              -Timeout <seconds>
+  -t, --timeout <seconds>              -Timeout <seconds>   (默认 600s)
   -f, --file <file>                    -File <file>
+  -o, --output <file>                  -Output <file>       (默认输出到 stdout)
+      --resume <session_id>            -Resume <session_id>
 ```
+
+**plan 审查模式**：prompt 里要写明「评审意见直接写在回复里，不要写计划文件」，否则 agy 可能只回复一个计划文件链接。
 
 ## Prompt 构建指南
 
 将用户需求转化为 Gemini 友好的 prompt 时，遵循以下结构：
 
-1. **角色设定** - 在 prompt 开头明确要求使用 gemini-3-pro-preview 模型能力进行 UI 设计，例如：「你是 Gemini Pro，一个顶级 UI 设计师和前端开发专家，擅长创建高品质、现代化的用户界面。」
+1. **角色设定** - 在 prompt 开头设定角色，例如：「你是一个顶级 UI 设计师和前端开发专家，擅长创建高品质、现代化的用户界面。」
 2. **任务描述** - 清晰描述要生成的 UI
 3. **技术栈** - 明确框架（React/Vue/HTML）和样式方案（Tailwind/CSS）
 4. **代码规范** - 语义化 HTML、可访问性、响应式、TypeScript
 5. **设计风格** - 视觉要求（现代简洁、间距圆角、微交互）
 6. **输出要求** - 直接生成代码，写入指定文件路径
 
-**关键：prompt 中应强调利用 Pro 模型的高级设计能力**，包括精细的视觉层次、配色方案、动画细节等。
+**关键：prompt 中应写清楚视觉细节要求**，包括精细的视觉层次、配色方案、动画细节等。
 
 参考 `references/prompt-templates.md` 获取完整模板。
 
