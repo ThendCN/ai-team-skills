@@ -4,8 +4,8 @@
 
 将 Antigravity CLI（Gemini）和 Codex CLI 集成为 Claude Code 的 skill，让 Claude Code 能够：
 
-- 委派 UI 设计任务给 **Gemini**（gemini-agent，通过 Antigravity CLI `agy` 调用）
-- 委派代码编写/审查任务给 **Codex**（codex-agent，模型使用 `~/.codex/config.toml` 的配置）
+- 委派 UI 设计任务给 **Gemini**（gemini-agent，通过 Antigravity CLI `agy` 调用，默认 `gemini-3.8-flash-high`）
+- 委派代码编写/审查任务给 **Codex**（codex-agent，默认 `gpt-6.1-sol`，推理强度 high）
 - 用 **Codex 内置图片生成**做配图、图标、插画（image-worker）
 - 编排多 Agent 协作流水线（ai-team），带交叉审查门禁和 worktree 并行隔离
 
@@ -95,7 +95,7 @@ Claude Code 分析任务 → 构建 prompt → 调用对应 CLI → 收集结果
 ## 前置要求
 
 - [Antigravity CLI](https://antigravity.google)（`agy`）已安装并登录
-- [Codex CLI](https://github.com/openai/codex) 已安装并配置（配图需要 `image_generation` 功能开启，新版默认开启，可用 `codex features list` 查看）
+- [Codex CLI](https://github.com/openai/codex) 0.159 及以上已安装并配置（默认模型 `gpt-6.1-sol` 需要新版才能识别；配图需要 `image_generation` 功能开启，新版默认开启，可用 `codex features list` 查看）
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 已安装
 - Linux / macOS 需要 `python3`（解析 agy 的 JSON 输出）
 

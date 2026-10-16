@@ -8,7 +8,7 @@ description: "Gemini AI 代理（通过 Antigravity CLI agy 调用）- UI 设计
 将 UI 设计和前端开发任务委派给 Gemini，由 Claude Code 编排和审查。
 
 > gemini CLI 已不再支持个人账号登录（报 `IneligibleTierError`），脚本改为调用 Antigravity CLI `agy`。
-> 默认模型使用 agy 的配置（如 Gemini 3.8 Flash (High)），可用 `agy models` 查看可选模型，用 `--model` 覆盖。
+> 默认模型为 `gemini-3.8-flash-high`（Gemini 3.8 Flash，high 档），可用 `agy models` 查看可选模型，用 `--model` 覆盖。
 
 ## 用法
 

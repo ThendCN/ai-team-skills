@@ -18,7 +18,7 @@ param(
     [ValidateSet("yolo", "plan")]
     [string]$Mode = "yolo",
 
-    [string]$Model = "",
+    [string]$Model = "gemini-3.8-flash-high",
 
     [Alias("d")]
     [string]$Dir = ".",
@@ -65,7 +65,7 @@ Usage: gemini-run.ps1 [OPTIONS] [prompt...]
 
 Options:
   -Mode <yolo|plan>        执行模式（默认 yolo，自动批准所有操作；plan 为只读，用于审查）
-  -Model <model>           模型覆盖（默认使用 agy 配置；可选值见 agy models）
+  -Model <model>           模型覆盖（默认 gemini-3.8-flash-high；可选值见 agy models）
   -Dir <directory>         工作目录（默认当前目录）
   -Timeout <seconds>       超时时间（默认 600s）
   -File <file>             从文件读取 prompt（推荐，避免转义问题）
@@ -128,7 +128,7 @@ if (-not (Get-Command "agy" -ErrorAction SilentlyContinue)) {
 # headless 模式下无法弹出权限确认，必须自动批准；plan 模式本身不会修改文件
 $agyArgs = @("--output-format", "json", "--dangerously-skip-permissions")
 if ($Mode -eq "plan") { $agyArgs += "--mode", "plan" }
-if ($Model) { $agyArgs += "--model", $Model }
+$agyArgs += "--model", $Model
 if ($Resume) { $agyArgs += "--conversation", $Resume }
 $agyArgs += "-p", $Prompt
 
@@ -136,7 +136,7 @@ $agyArgs += "-p", $Prompt
 Push-Location $Dir
 try {
     Write-Host "=== Gemini Agent Starting (agy) ===" -ForegroundColor Cyan
-    Write-Host "Mode: $Mode | Dir: $Dir | Timeout: ${Timeout}s" -ForegroundColor DarkGray
+    Write-Host "Mode: $Mode | Model: $Model | Dir: $Dir | Timeout: ${Timeout}s" -ForegroundColor DarkGray
     if ($Resume) { Write-Host "Resume: $Resume" -ForegroundColor DarkGray }
     Write-Host "---" -ForegroundColor DarkGray
 

@@ -9,7 +9,7 @@ set -euo pipefail
 MODE="yolo"
 WORKDIR="."
 TIMEOUT=600
-MODEL=""
+MODEL="gemini-3.8-flash-high"
 PROMPT_FILE=""
 PROMPT_ARGS=""
 OUTPUT_FILE=""
@@ -21,7 +21,7 @@ Usage: gemini-run.sh [OPTIONS] [prompt...]
 
 Options:
   -m, --mode <yolo|plan>     执行模式（默认 yolo，自动批准所有操作；plan 为只读，用于审查）
-  --model <model>            模型覆盖（默认使用 agy 配置；可选值见 `agy models`）
+  --model <model>            模型覆盖（默认 gemini-3.8-flash-high；可选值见 `agy models`）
   -d, --dir <directory>      工作目录（默认当前目录）
   -t, --timeout <seconds>    超时时间（默认 600s）
   -f, --file <file>          从文件读取 prompt（推荐，避免 shell 转义问题）
@@ -121,9 +121,7 @@ case "$MODE" in
         exit 1 ;;
 esac
 
-if [[ -n "$MODEL" ]]; then
-    AGY_ARGS+=(--model "$MODEL")
-fi
+AGY_ARGS+=(--model "$MODEL")
 
 if [[ -n "$RESUME_ID" ]]; then
     AGY_ARGS+=(--conversation "$RESUME_ID")
@@ -135,7 +133,7 @@ trap 'rm -f "$RESULT_JSON"' EXIT
 # 执行 agy
 cd "$WORKDIR"
 echo "=== Gemini Agent Starting (agy) ===" >&2
-echo "Mode: $MODE | Dir: $WORKDIR | Timeout: ${TIMEOUT}s" >&2
+echo "Mode: $MODE | Model: $MODEL | Dir: $WORKDIR | Timeout: ${TIMEOUT}s" >&2
 if [[ -n "$RESUME_ID" ]]; then
     echo "Resume: $RESUME_ID" >&2
 fi

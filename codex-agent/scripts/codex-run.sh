@@ -8,7 +8,8 @@ set -euo pipefail
 export PATH="$PATH:$HOME/.local/share/pnpm:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"
 
 # 默认值
-MODEL=""
+MODEL="gpt-6.1-sol"
+EFFORT="high"  # 推理强度
 WORKDIR="."
 TIMEOUT=900  # 15分钟，codex 任务通常需要 5-15 分钟
 SANDBOX="workspace-write"
@@ -23,7 +24,7 @@ usage() {
 Usage: codex-run.sh [OPTIONS] [prompt...]
 
 Options:
-  -m, --model <model>        模型覆盖（默认用 config.toml 配置）
+  -m, --model <model>        模型覆盖（默认 gpt-6.1-sol，推理强度 high）
   -d, --dir <directory>      工作目录（默认当前目录）
   -t, --timeout <seconds>    超时时间（默认 900s）
   -s, --sandbox <mode>       沙箱模式: workspace-write(默认) | dangerous | read-only
@@ -145,10 +146,8 @@ else
     CODEX_ARGS=(exec "${SANDBOX_ARGS[@]}")
 fi
 
-# 模型覆盖
-if [[ -n "$MODEL" ]]; then
-    CODEX_ARGS+=(-m "$MODEL")
-fi
+# 模型和推理强度
+CODEX_ARGS+=(-m "$MODEL" -c "model_reasoning_effort=\"$EFFORT\"")
 
 # 默认跳过 git 仓库检查
 CODEX_ARGS+=(--skip-git-repo-check)
@@ -165,9 +164,7 @@ fi
 # 执行信息
 echo "=== Codex Agent Starting ===" >&2
 echo "Mode: $MODE | Sandbox: $SANDBOX | Dir: $WORKDIR | Timeout: ${TIMEOUT}s" >&2
-if [[ -n "$MODEL" ]]; then
-    echo "Model: $MODEL" >&2
-fi
+echo "Model: $MODEL | Effort: $EFFORT" >&2
 if [[ -n "$RESUME_ID" ]]; then
     echo "Resume: $RESUME_ID" >&2
 fi

@@ -5,7 +5,7 @@ description: "Codex AI 代理 - 代码编写与实现专家。支持代码编写
 
 # Codex Agent - AI 团队代码实现专家
 
-将代码编写和实现任务委派给 Codex（模型和推理强度使用 `~/.codex/config.toml` 中的配置），由 Claude Code 编排和审查。
+将代码编写和实现任务委派给 Codex（默认模型 `gpt-6.1-sol`，推理强度 high，可用 `-m` 覆盖模型；需要 codex-cli 0.159 及以上才认识该模型），由 Claude Code 编排和审查。
 
 ## 用法
 

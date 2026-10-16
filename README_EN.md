@@ -4,8 +4,8 @@
 
 Integrate Antigravity CLI (Gemini) and Codex CLI as Claude Code skills, enabling Claude Code to:
 
-- Delegate UI design tasks to **Gemini** (gemini-agent, via Antigravity CLI `agy`)
-- Delegate code writing/review tasks to **Codex** (codex-agent, using the model set in `~/.codex/config.toml`)
+- Delegate UI design tasks to **Gemini** (gemini-agent, via Antigravity CLI `agy`, defaults to `gemini-3.8-flash-high`)
+- Delegate code writing/review tasks to **Codex** (codex-agent, defaults to `gpt-6.1-sol` with high reasoning effort)
 - Generate illustrations, icons and artwork with **Codex built-in image generation** (image-worker)
 - Orchestrate multi-agent collaboration pipelines (ai-team) with cross-review gates and worktree isolation
 
@@ -95,7 +95,7 @@ Images (can be added to any mode)
 ## Prerequisites
 
 - [Antigravity CLI](https://antigravity.google) (`agy`) installed and signed in
-- [Codex CLI](https://github.com/openai/codex) installed and configured (images need the `image_generation` feature, enabled by default in recent versions; check with `codex features list`)
+- [Codex CLI](https://github.com/openai/codex) 0.159+ installed and configured (the default model `gpt-6.1-sol` requires a recent version; images need the `image_generation` feature, enabled by default in recent versions; check with `codex features list`)
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
 - `python3` on Linux / macOS (parses agy JSON output)
 

@@ -14,7 +14,7 @@
 
 param(
     [Alias("m")]
-    [string]$Model = "",
+    [string]$Model = "gpt-6.1-sol",
 
     [Alias("d")]
     [string]$Dir = ".",
@@ -79,7 +79,7 @@ if ($Help) {
 Usage: codex-run.ps1 [OPTIONS] [prompt...]
 
 Options:
-  -Model <model>           模型覆盖（默认用 config.toml 配置）
+  -Model <model>           模型覆盖（默认 gpt-6.1-sol，推理强度 high）
   -Dir <directory>         工作目录（默认当前目录）
   -Timeout <seconds>       超时时间（默认 900s）
   -Sandbox <mode>          沙箱模式: workspace-write(默认) | dangerous | read-only
@@ -168,7 +168,8 @@ elseif ($Resume) {
 else {
     $codexArgs = @("exec") + $sandboxArgs
 }
-if ($Model) { $codexArgs += "-m", $Model }
+# 模型和推理强度
+$codexArgs += "-m", $Model, "-c", "model_reasoning_effort=high"
 $codexArgs += "--skip-git-repo-check"
 if ($Output) { $codexArgs += "-o", $Output }
 if ($Resume) { $codexArgs += $Resume }
@@ -176,7 +177,7 @@ if ($Resume) { $codexArgs += $Resume }
 # --- 执行信息 ---
 Write-Host "=== Codex Agent Starting ===" -ForegroundColor Cyan
 Write-Host "Mode: $ExecMode | Sandbox: $Sandbox | Dir: $Dir | Timeout: ${Timeout}s" -ForegroundColor DarkGray
-if ($Model) { Write-Host "Model: $Model" -ForegroundColor DarkGray }
+Write-Host "Model: $Model | Effort: high" -ForegroundColor DarkGray
 if ($Resume) { Write-Host "Resume: $Resume" -ForegroundColor DarkGray }
 Write-Host "---" -ForegroundColor DarkGray
 
