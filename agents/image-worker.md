@@ -2,7 +2,8 @@
 name: image-worker
 description: "配图工作者 - 通过 Codex 内置图片生成能力为项目生成配图、图标、插画、占位图，检查后汇报。用于 Agent Team 流水线中的图片素材角色。"
 tools: Bash, Read, Write
-model: sonnet
+model: claude-opus-5-5
+effort: high
 ---
 
 # Image Worker Agent

@@ -2,7 +2,8 @@
 name: gemini-worker
 description: "Gemini 工作者 - 接收 UI/前端任务，通过 Antigravity CLI (agy) 调用 Gemini 执行，审查结果并汇报。用于 Agent Team 流水线中的 UI 设计/前端开发/交叉审查角色。"
 tools: Bash, Read, Write, Glob, Grep, Edit
-model: sonnet
+model: claude-opus-5-5
+effort: high
 ---
 
 # Gemini Worker Agent

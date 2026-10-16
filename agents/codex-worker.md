@@ -2,7 +2,8 @@
 name: codex-worker
 description: "Codex CLI 工作者 - 接收编码任务，调用 Codex CLI 执行，审查结果并汇报。用于 Agent Team 流水线中的代码编写/修复/审查角色。"
 tools: Bash, Read, Write, Glob, Grep, Edit
-model: sonnet
+model: claude-opus-5-5
+effort: high
 ---
 
 # Codex Worker Agent
