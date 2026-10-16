@@ -99,3 +99,51 @@ Test command: {test_command}
 
 测试命令: {test_command}
 ```
+
+## 模板 4: 交叉审查门禁
+
+每个产出由另一个模型审查，FAIL 时续聊原会话修复。
+
+### Gemini 审查 Codex 代码（`gemini-run.sh -m plan`）
+
+```
+你是代码审查者。只审查，不要修改任何文件，不要写计划文件，评审意见直接写在回复里。
+
+审查目录: {review_dir}
+查看变更: {git diff 命令，如 `git diff` + `git status`，或 `git diff {base_branch}...HEAD`}
+
+任务需求: {task_description}
+
+审查重点:
+1. 是否实现了需求，有无遗漏
+2. 逻辑错误、边界条件
+3. 安全问题
+4. 错误处理
+
+每个问题写明: 文件、行号、问题、建议改法、严重程度（P0/P1/P2）。
+存在 P0/P1 问题时判定 FAIL。
+最后一行输出 VERDICT: PASS 或 VERDICT: FAIL
+```
+
+### Codex 审查 Gemini UI（`codex-run.sh -r`）
+
+`--uncommitted` / `--base` 不能和自定义 prompt 同时使用，直接运行：
+
+```bash
+bash ~/.claude/skills/codex-agent/scripts/codex-run.sh -r --uncommitted -d {review_dir} -o /tmp/review.txt
+# worktree 模式：
+bash ~/.claude/skills/codex-agent/scripts/codex-run.sh -r --base {base_branch} -d {worktree_path} -o /tmp/review.txt
+```
+
+由 codex-worker 读完审查结果后给出 VERDICT。
+
+### 打回修复（作者用 `--resume {SESSION_ID}` 续聊）
+
+```
+审查没有通过（第 {round}/{max_rounds} 轮），请修复以下问题：
+
+{filtered_findings}
+
+只改这些问题，不要做无关改动。修完后说明每个问题是怎么改的。
+{测试命令（如有）: test_command}
+```
